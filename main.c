@@ -1,5 +1,7 @@
 #include "base.h"
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 ////~ Scanning
 
@@ -85,6 +87,8 @@ enum Error_Type {
 	Err_UnknownChar,
 	Err_InvalidBase,
 	Err_InvalidNumber,
+	Err_InvalidEscapeSequence,
+	Err_InvalidStringChar,
 	Err_UnclosedString,
 
 	// Parser errors
@@ -183,6 +187,72 @@ static Scanner_Result scanner_result(TokenType type, i32 start, i32 end){
 }
 
 static inline
+rune escape_sequence(rune c){
+	switch(c){
+	case 't': return '\t';
+	case 'r': return '\r';
+	case 'n': return '\n';
+	case '"': return '"';
+	case '\'': return '\'';
+	case '\\': return '\\';
+	}
+	return RUNE_ERROR;
+}
+
+static Scanner_Result scan_string(Scanner* sc, i32 start){
+	Error error = {0};
+
+	for(;;){
+		i32 offset = sc->current;
+		rune r = scan_next(sc);
+
+		if(r == '\0'){
+			Scanner_Result result = scanner_result(Tk_String, start, sc->current);
+			result.error = (Error){
+				.offset = offset,
+				.typ = Err_UnclosedString,
+			};
+			return result;
+		}
+
+		if(r == '"'){
+			Scanner_Result result = scanner_result(Tk_String, start, sc->current);
+			result.error = error;
+			return result;
+		}
+
+		if(r == '\\'){
+			i32 escape_offset = sc->current;
+			rune escaped = scan_next(sc);
+			if(escaped == '\0'){
+				Scanner_Result result = scanner_result(Tk_String, start, sc->current);
+				result.error = (Error){
+					.offset = escape_offset,
+					.typ = Err_UnclosedString,
+				};
+				return result;
+			}
+			if(escape_sequence(escaped) == RUNE_ERROR && error.typ == Err_None){
+				error = (Error){
+					.offset = escape_offset,
+					.typ = Err_InvalidEscapeSequence,
+					.got.character = escaped,
+				};
+			}
+			continue;
+		}
+
+		if((r == '\n' || r == '\r' || r == '\t') && error.typ == Err_None){
+			error = (Error){
+				.offset = offset,
+				.typ = Err_InvalidStringChar,
+				.got.character = r,
+			};
+		}
+	}
+}
+
+static inline
 i32 base_of(rune c){
 	switch(c){
 	case 'b': case 'B': return 2;
@@ -206,9 +276,104 @@ i32 digit_of(rune c){
 	return -1;
 }
 
+static bool scan_digit_sequence(Scanner* sc, i32 base){
+	bool has_digit = false;
+
+	for(;;){
+		rune r = scan_peek(sc, 0);
+		if(r == '_'){
+			scan_next(sc);
+			continue;
+		}
+
+		i32 digit = digit_of(r);
+		if(digit < 0 || digit >= base){
+			break;
+		}
+
+		has_digit = true;
+		scan_next(sc);
+	}
+	return has_digit;
+}
+
+static bool scan_exponent(Scanner* sc, rune lower, rune upper){
+	rune r = scan_peek(sc, 0);
+	if(r != lower && r != upper){
+		return false;
+	}
+
+	Scanner parsed = *sc;
+	scan_next(&parsed);
+	if(scan_peek(&parsed, 0) == '+' || scan_peek(&parsed, 0) == '-'){
+		scan_next(&parsed);
+	}
+
+	if(!scan_digit_sequence(&parsed, 10)){
+		return false;
+	}
+
+	*sc = parsed;
+	return true;
+}
+
+static bool scan_real_suffix(Scanner* sc, i32 base){
+	Scanner parsed = *sc;
+	bool has_fraction = false;
+
+	if(scan_take_if(&parsed, '.')){
+		if(scan_digit_sequence(&parsed, base)){
+			has_fraction = true;
+		} else {
+			parsed = *sc;
+		}
+	}
+
+	bool has_exponent = base == 16
+		? scan_exponent(&parsed, 'p', 'P')
+		: scan_exponent(&parsed, 'e', 'E');
+
+	if(base == 16 ? !has_exponent : !has_fraction && !has_exponent){
+		return false;
+	}
+
+	*sc = parsed;
+	return true;
+}
+
+static Scanner_Result scan_real(Scanner const* sc, i32 start){
+	i32 raw_len = sc->current - start;
+	char normalized[raw_len + 1];
+	i32 normalized_len = 0;
+
+	for(i32 i = start; i < sc->current; i += 1){
+		if(sc->source.v[i] != '_'){
+			normalized[normalized_len] = sc->source.v[i];
+			normalized_len += 1;
+		}
+	}
+	normalized[normalized_len] = '\0';
+
+	char* end = NULL;
+	errno = 0;
+	f64 value = strtod(normalized, &end);
+	Scanner_Result result = scanner_result(Tk_Real, start, sc->current);
+	if(end != normalized + normalized_len || errno == ERANGE){
+		result.error = (Error){
+			.offset = start + (i32)(end - normalized),
+			.typ = Err_InvalidNumber,
+		};
+		return result;
+	}
+
+	result.token.value_real = value;
+	return result;
+}
+
 static Scanner_Result scan_integer(Scanner* sc, i32 start, rune first){
 	i32 base = 10;
 	bool has_body = true;
+	bool has_digit = true;
 	i64 value = first - '0';
 	Error error = {0};
 
@@ -217,6 +382,7 @@ static Scanner_Result scan_integer(Scanner* sc, i32 start, rune first){
 		if(prefixed_base != -1){
 			base = prefixed_base;
 			has_body = false;
+			has_digit = false;
 			value = 0;
 			scan_next(sc);
 		}
@@ -236,6 +402,7 @@ static Scanner_Result scan_integer(Scanner* sc, i32 start, rune first){
 		}
 
 		has_body = true;
+		has_digit = true;
 		i32 digit_offset = sc->current;
 		scan_next(sc);
 
@@ -250,6 +417,13 @@ static Scanner_Result scan_integer(Scanner* sc, i32 start, rune first){
 				value = value * base + digit;
 			}
 		}
+	}
+
+	if((base == 10 || base == 16) && has_digit){
+		Scanner real = *sc;
+		if(scan_real_suffix(&real, base)){
+			*sc = real;
+			return scan_real(sc, start); }
 	}
 
 	if(!has_body){
@@ -272,6 +446,9 @@ Scanner_Result scanner_next_token(Scanner* sc){
 	TokenType type = Tk_Unknown;
 	if(r >= '0' && r <= '9'){
 		return scan_integer(sc, start, r);
+	}
+	if(r == '"'){
+		return scan_string(sc, start);
 	}
 
 	switch(r){
@@ -329,6 +506,7 @@ Scanner_Result scanner_next_token(Scanner* sc){
 	}
 	return result;
 }
+
 Scanner_Result scan_peek_token(Scanner const* sc){
 	Scanner copy = *sc;
 	return scanner_next_token(&copy);
