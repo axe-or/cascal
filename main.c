@@ -127,6 +127,9 @@ typedef struct {
 	TokenType type;
 	i32 start;
 	i32 end;
+
+	i64 value_int;
+	f64 value_real;
 } Token;
 
 typedef struct {
@@ -179,10 +182,97 @@ static Scanner_Result scanner_result(TokenType type, i32 start, i32 end){
 	};
 }
 
+static inline
+i32 base_of(rune c){
+	switch(c){
+	case 'b': case 'B': return 2;
+	case 'o': case 'O': return 8;
+	case 'x': case 'X': return 16;
+	}
+	return -1;
+}
+
+static inline
+i32 digit_of(rune c){
+	if(c >= '0' && c <= '9'){
+		return c - '0';
+	}
+	if(c >= 'a' && c <= 'f'){
+		return c - 'a' + 10;
+	}
+	if(c >= 'A' && c <= 'F'){
+		return c - 'A' + 10;
+	}
+	return -1;
+}
+
+static Scanner_Result scan_integer(Scanner* sc, i32 start, rune first){
+	i32 base = 10;
+	bool has_body = true;
+	i64 value = first - '0';
+	Error error = {0};
+
+	if(first == '0'){
+		i32 prefixed_base = base_of(scan_peek(sc, 0));
+		if(prefixed_base != -1){
+			base = prefixed_base;
+			has_body = false;
+			value = 0;
+			scan_next(sc);
+		}
+	}
+
+	for(;;){
+		rune r = scan_peek(sc, 0);
+		if(r == '_'){
+			has_body = true;
+			scan_next(sc);
+			continue;
+		}
+
+		i32 digit = digit_of(r);
+		if(digit < 0 || digit >= base){
+			break;
+		}
+
+		has_body = true;
+		i32 digit_offset = sc->current;
+		scan_next(sc);
+
+		if(error.typ == Err_None){
+			if(value > (INT64_MAX - digit) / base){
+				error = (Error){
+					.offset = digit_offset,
+					.typ = Err_InvalidNumber,
+					.got.character = r,
+				};
+			} else {
+				value = value * base + digit;
+			}
+		}
+	}
+
+	if(!has_body){
+		error = (Error){
+			.offset = sc->current,
+			.typ = Err_InvalidNumber,
+			.got.character = scan_peek(sc, 0),
+		};
+	}
+
+	Scanner_Result result = scanner_result(Tk_Integer, start, sc->current);
+	result.token.value_int = value;
+	result.error = error;
+	return result;
+}
+
 Scanner_Result scanner_next_token(Scanner* sc){
 	i32 start = sc->current;
 	rune r = scan_next(sc);
 	TokenType type = Tk_Unknown;
+	if(r >= '0' && r <= '9'){
+		return scan_integer(sc, start, r);
+	}
 
 	switch(r){
 	case '\0':
@@ -239,7 +329,6 @@ Scanner_Result scanner_next_token(Scanner* sc){
 	}
 	return result;
 }
-
 Scanner_Result scan_peek_token(Scanner const* sc){
 	Scanner copy = *sc;
 	return scanner_next_token(&copy);
@@ -247,4 +336,3 @@ Scanner_Result scan_peek_token(Scanner const* sc){
 
 int main(){
 }
-
