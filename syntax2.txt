@@ -1,0 +1,30 @@
+proc safe_div(a: Int, b: Int) -> (Int, Bool)
+do
+	if b == 0 then
+		return 0, false;
+	end
+	return a / b, true;
+end
+
+proc main()
+var
+	q: Int;
+	ok: Bool;
+do
+	q, ok = safe_div(30, 0);
+	assert(ok, "Divide by zero");
+end
+
+type Person = record
+	age: Int,
+	name: String,
+end
+
+type Node = variant
+	binary: Binary_Node,
+	unary: Unary_Node,
+	primary: Primary_Node,
+with
+	parent: ^Node,
+	typ: Type,
+end

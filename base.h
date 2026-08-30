@@ -106,9 +106,6 @@ typedef _Atomic(bool) AtomicBool;
 
 ////~ Assertions
 
-// Expansion to use `String` with printf `%.*s` formatting
-#define strf(s) (int)((s).len), ((s).v)
-
 // Abort program with a message 
 _Noreturn void panic_ex(char const* file, int line, char const* fmt, ...);
 
@@ -124,6 +121,9 @@ void ensure_ex(bool predicate, char const* msg, char const* file, int line);
 
 ////~ String
 
+// Expansion to use `String` with printf `%.*s` formatting
+#define strf(s) (int)((s).len), ((s).v)
+
 // UTF-8 encoded slice of bytes
 typedef struct {
 	char const* v;
@@ -131,10 +131,7 @@ typedef struct {
 } String;
 
 // Helper macro to turn usual C-strings into sized strings
-#define $str(s) ((String){.v = (u8 const*)("" s ""), .len = (sizeof(s) - 1)})
-
-// Helper macro to use sized string with printf's "%.*s"
-#define $strfmt(S) ((int)((S).len)), ((u8 const*)((S).v))
+#define strlit(s) ((String){.v = (char const*)("" s ""), .len = (sizeof(s) - 1)})
 
 // Length of a C-style string
 static inline

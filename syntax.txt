@@ -1,0 +1,57 @@
+// Comments
+
+// Literals
+const
+	// Numerical constants (`_`s are ignored and serve as separators
+	bin: Int = 0b1010101;
+	oct: Int = 0o755;
+	hex: Int = 0xff_ffd;
+	dec: Int = 123_6789;
+
+	// Booleans
+	yes: Bool = true;
+	no: Bool = false;
+
+	// Strings
+	msg: String = "Hello";
+
+
+// Variant types (tagged unions, but can have common fields)
+type Node = variant of
+	binary: Binary_Node,
+	unary: Unary_Node,
+	primary: Primary_Node,
+with
+	parent: ^Node,
+	typ: Type,
+end
+
+// Procedures and control flow
+proc foo(n: Int) -> (int, int): // Tuple
+	var
+		x: Int = 10;
+		y: Int; // Zero initialized is default
+
+		tup: My_Tuple;
+begin
+	y = match x with
+		value -> value,
+		error -> error,
+	end;
+
+	// variant checking
+	// expr `is` variant_label (`as` alt_name)?
+	if x is error as e do
+		return e;
+	end
+
+	// shorthands that work for Option[T] and Result[T, E]
+	y = x or_return;
+	y = x or_else 0;
+
+	for n > 0 do
+		x = x * 2;
+		y = y + 1;
+	end
+
+end
