@@ -150,19 +150,19 @@ isize cstring_len(cstring cs) {
 typedef struct {
 	rune codepoint;
 	i32  size;
-} RuneDecoded;
+} Rune_Decoded;
 
 // Encoded form of a unicode codepoint
 typedef struct {
 	u8  bytes[4];
 	i32 size;
-} RuneEncoded;
+} Rune_Encoded;
 
 // Encode a codepoint `r` to UTF-8
-RuneEncoded rune_encode(rune r);
+Rune_Encoded rune_encode(rune r);
 
 // Decode the first rune of a UTF-8 encoded buffer
-RuneDecoded rune_decode(u8 const* buf, u32 buflen);
+Rune_Decoded rune_decode(u8 const* buf, u32 buflen);
 
 ////~ Slice
 #define Slice(T) struct { T* v; isize len; }
@@ -222,17 +222,17 @@ Arena arena_from_buffer(void* buffer, size_t buffer_size);
 typedef struct {
 	Arena* arena;
 	size_t offset;
-} ArenaRegion;
+} Arena_Reg;
 
 // Get a checkpoint of arena state
 static inline
-ArenaRegion arena_region_begin(Arena* a){
-	return (ArenaRegion){.arena = a, .offset = a->offset};
+Arena_Reg arena_region_begin(Arena* a){
+	return (Arena_Reg){.arena = a, .offset = a->offset};
 }
 
 // Reset arena to a checkpoint
 static inline
-void arena_region_end(ArenaRegion r){
+void arena_region_end(Arena_Reg r){
 	r.arena->offset = r.offset;
 }
 

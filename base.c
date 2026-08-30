@@ -7,18 +7,18 @@
 
 ////~ Utilities
 extern _Noreturn void abort();
-extern void* memmove(void*, void const*, size_t);
-extern void* memset(void*, int, size_t);
+extern void* memmove(void*, void const*, usize);
+extern void* memset(void*, int, usize);
 extern double strtod(char const*, char**);
 extern int puts(char const*);
 
 static inline
-void mem_copy(void* dst, void const* src, size_t n){
+void mem_copy(void* dst, void const* src, usize n){
 	memmove(dst, src, n);
 }
 
 static inline
-void mem_zero(void* ptr, size_t n){
+void mem_zero(void* ptr, usize n){
 	memset(ptr, 0, n);
 }
 
@@ -46,7 +46,7 @@ void mem_zero(void* ptr, size_t n){
 attribute_format(3, 4)
 _Noreturn
 void panic_ex(char const* file, int line, char const* fmt, ...){
-	static uint8_t panic_msg_buf[300] = {0};
+	static u8 panic_msg_buf[300] = {0};
 	usize pos = 0;
 
 	int n = stbsp_snprintf((char*)(&panic_msg_buf[0]), sizeof(panic_msg_buf), "(%s:%d) panic: ", file, line);
@@ -97,7 +97,7 @@ bool str_equal(String a, String b){
 ////~ Arena
 
 static inline
-bool mem_valid_alignment(size_t align){
+bool mem_valid_alignment(usize align){
 	return (align != 0) && ((align & (align - 1)) == 0);
 }
 
@@ -125,7 +125,7 @@ bool arena_owns(Arena const* a, void const* ptr){
 	return p >= base && p < end;
 }
 
-void* arena_alloc(Arena* a, size_t size, size_t align){
+void* arena_alloc(Arena* a, usize size, usize align){
 	if(size == 0){
 		return NULL;
 	}
@@ -136,19 +136,19 @@ void* arena_alloc(Arena* a, size_t size, size_t align){
 	uintptr_t current = base + a->offset;
 	uintptr_t aligned = mem_align_forward_ptr(current, align);
 
-	size_t padding = aligned - current;
+	usize padding = aligned - current;
 
 	// Avoid `padding + size` overflowing.
 	if(padding > a->capacity - a->offset){
 		return NULL;
 	}
 
-	size_t available = a->capacity - a->offset - padding;
+	usize available = a->capacity - a->offset - padding;
 	if(size > available){
 		return NULL;
 	}
 
-	size_t required = padding + size;
+	usize required = padding + size;
 
 	a->offset += required;
 
@@ -163,7 +163,7 @@ void* arena_alloc(Arena* a, size_t size, size_t align){
 	return allocation;
 }
 
-bool arena_resize(Arena* a, void* ptr, size_t new_size){
+bool arena_resize(Arena* a, void* ptr, usize new_size){
 	if(ptr == NULL){
 		return false;
 	}
@@ -177,20 +177,20 @@ bool arena_resize(Arena* a, void* ptr, size_t new_size){
 	uintptr_t base      = (uintptr_t)a->data;
 	uintptr_t allocation = (uintptr_t)ptr;
 
-	size_t allocation_offset = allocation - base;
+	usize allocation_offset = allocation - base;
 
 	if(new_size > a->capacity - allocation_offset){
 		return false;
 	}
 
-	size_t old_size = a->last_allocation_size;
+	usize old_size = a->last_allocation_size;
 
 	a->offset = allocation_offset + new_size;
 	a->last_allocation_size = new_size;
 
 	if(new_size > old_size){
 		mem_zero(
-			(uint8_t*)ptr + old_size,
+			(u8*)ptr + old_size,
 			new_size - old_size
 		);
 	}
@@ -199,7 +199,7 @@ bool arena_resize(Arena* a, void* ptr, size_t new_size){
 	return true;
 }
 
-void* arena_realloc(Arena* a, void* ptr, size_t old_size, size_t new_size, size_t align){
+void* arena_realloc(Arena* a, void* ptr, usize old_size, usize new_size, usize align){
 	if(ptr == NULL){
 		return arena_alloc(a, new_size, align);
 	}
@@ -220,7 +220,7 @@ void* arena_realloc(Arena* a, void* ptr, size_t old_size, size_t new_size, size_
 	return new_ptr;
 }
 
-Arena arena_from_buffer(void* buffer, size_t buffer_size){
+Arena arena_from_buffer(void* buffer, usize buffer_size){
 	ensure(buffer != NULL, "invalid arena buffer");
 
 	return (Arena){
@@ -232,8 +232,140 @@ Arena arena_from_buffer(void* buffer, size_t buffer_size){
 	};
 }
 
-////~ String builder
+////~ String
+#define MASKX 0x3f /* 0011_1111 */
+#define MASK2 0x1f /* 0001_1111 */
+#define MASK3 0x0f /* 0000_1111 */
+#define MASK4 0x07 /* 0000_0111 */
 
+#define CONT_LO 0x80
+#define CONT_HI 0xbf
+
+struct UTF8AcceptRange { u8 lo, hi; };
+
+static const
+struct UTF8AcceptRange utf8_accept_ranges[5] = {
+	{0x80, 0xbf},
+	{0xa0, 0xbf},
+	{0x80, 0x9f},
+	{0x90, 0xbf},
+	{0x80, 0x8f},
+};
+
+static const u8 utf8_accept_sizes[256] = {
+	0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,
+	0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,
+	0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,
+	0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,
+	0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,
+	0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,
+	0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,
+	0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,0xf0,
+	0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,
+	0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,
+	0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,
+	0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,
+	0xf1,0xf1,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,
+	0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,
+	0x13,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x03,0x23,0x03,0x03,
+	0x34,0x04,0x04,0x04,0x44,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,0xf1,
+};
+
+Rune_Decoded rune_decode(u8 const* buf, u32 buflen){
+	Rune_Decoded result = {};
+	const Rune_Decoded error = { .codepoint = RUNE_ERROR, .size = 1 };
+
+	if(buflen < 1){
+		return result;
+	}
+
+	u8 b0 = buf[0];
+	u8 x = utf8_accept_sizes[b0];
+
+	// ASCII or invalid
+	if(x >= 0xf0){
+		u32 mask = ((rune)(x) << 31) >> 31; // Either all 0's or all 1's to avoid branching
+		result.codepoint = ((rune)(b0) & ~mask) | (RUNE_ERROR & mask);
+		result.size = 1;
+		return result;
+	}
+
+	u8 sz = x & 7;
+	struct UTF8AcceptRange accept = utf8_accept_ranges[x >> 4];
+
+	if(buflen < sz){
+		return error;
+	}
+
+	u8 b1 = buf[1];
+	if(b1 < accept.lo || accept.hi < b1){
+		return error;
+	}
+	if(sz == 2){
+		result.codepoint = ((rune)(b0 & MASK2) << 6) | ((rune)(b1 & MASKX));
+		result.size = 2;
+		return result;
+	}
+
+	u8 b2 = buf[2];
+	if(b2 < CONT_LO || CONT_HI < b2){
+		return error;
+	}
+
+	if(sz == 3){
+		result.codepoint = ((rune)(b0 & MASK3) << 12) | ((rune)(b1 & MASKX) << 6) | (rune)(b2 & MASKX);
+		result.size = 3;
+		return result;
+	}
+
+	u8 b3 = buf[3];
+	if(b3 < CONT_LO || CONT_HI < b3){
+		return error;
+	}
+
+	result.codepoint = ((rune)(b0 & MASK4) << 18) | ((rune)(b1 & MASKX) << 12) | ((rune)(b2 & MASKX) << 6) | (rune)(b3 & MASKX);
+	result.size = 4;
+	return result;
+}
+
+Rune_Encoded rune_encode(rune r){
+	const u8 mask = 0x3f;
+	Rune_Encoded result = {};
+
+	if(r <= 0x7f){ // 1-wide (ASCII)
+		return (Rune_Encoded){ .bytes = {(u8)r}, .size = 1 };
+	}
+
+	if(r <= 0x7ff){ // 2-wide
+		result.bytes[0] = 0xc0 |  (u8)(r >> 6);
+		result.bytes[1] = 0x80 | ((u8)(r) & mask);
+		result.size = 2;
+		return result;
+	}
+
+	// Surrogate or invalid -> Encode the error rune
+	if((r > 0x10ffff) || ((0xd800 <= r) && (r <= 0xdfff))){
+		r = 0xfffd;
+	}
+
+	if(r <= 0xffff){ // 3-wide
+		result.bytes[0] = 0xe0 |  (u8)(r >> 12);
+		result.bytes[1] = 0x80 | ((u8)(r >> 6) & mask);
+		result.bytes[2] = 0x80 | ((u8)(r)      & mask);
+		result.size = 3;
+		return result;
+	}
+	else { // 4-wide
+		result.bytes[0] = 0xf0 |  (u8)(r >> 18);
+		result.bytes[1] = 0x80 | ((u8)(r >> 12) & mask);
+		result.bytes[2] = 0x80 | ((u8)(r >> 6)  & mask);
+		result.bytes[3] = 0x80 | ((u8)(r)       & mask);
+		result.size = 4;
+		return result;
+	}
+}
+
+////~ String Builder
 String_Builder sb_make(int cap, Arena* a){
 	char* buf = arena_make(a, char, cap);
 	ensure(buf, "alloc error");
