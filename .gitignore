@@ -1,0 +1,9 @@
+cascal
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.obj
+*.o
+*.so
+*.gen.*
