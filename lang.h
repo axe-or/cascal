@@ -66,8 +66,8 @@ typedef enum {
 	TOKEN_TYPES
 #undef X
 
-	TokenType__COUNT,
-} TokenType;
+	Token_Type__COUNT,
+} Token_Type;
 
 enum Error_Type {
 	Err_None = 0,
@@ -94,20 +94,20 @@ typedef struct {
 
 	union {
 		rune character;
-		TokenType token_type;
+		Token_Type token_type;
 	} expected;
 
 	union {
 		rune character;
-		TokenType token_type;
+		Token_Type token_type;
 	} got;
 } Error;
 
 // Token Type to string
-String token_type_name(TokenType t);
+String token_type_name(Token_Type t);
 
 typedef struct {
-	TokenType type;
+	Token_Type type;
 	i32 start;
 	i32 end;
 

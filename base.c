@@ -7,41 +7,8 @@
 
 ////~ Utilities
 extern _Noreturn void abort();
-extern void* memmove(void*, void const*, usize);
-extern void* memset(void*, int, usize);
 extern double strtod(char const*, char**);
 extern int puts(char const*);
-
-static inline
-void mem_copy(void* dst, void const* src, usize n){
-	memmove(dst, src, n);
-}
-
-static inline
-void mem_zero(void* ptr, usize n){
-	memset(ptr, 0, n);
-}
-
-// static inline
-// char* stb_printf_writer_adapter(char const* buf, void* user, int len){
-// 	Writer w = *((Writer*)user);
-// 	write_to(w, buf, len);
-// 	return NULL;
-// }
-
-// static
-// int write_vfmt(Writer w, char const* format, va_list args){
-// 	char buf[STB_SPRINTF_MIN + 64] = {0};
-// 	return stbsp_vsprintfcb(stb_printf_writer_adapter, &w, &buf[0], format, args);
-// }
-
-// static
-// void write_fmt(Writer w, char const* format, ...){
-// 	va_list args;
-// 	va_start(args, format);
-// 	write_vfmt(w, format, args);
-// 	va_end(args);
-// }
 
 attribute_format(3, 4)
 _Noreturn

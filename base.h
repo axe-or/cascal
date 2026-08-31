@@ -277,3 +277,18 @@ String sb_build(String_Builder* sb);
 // Get the builder's string and invalidate the builder. The result is null
 // terminated for C-string compatibility. Modifying the builder makes the string invalid
 String sb_get(String_Builder* sb);
+
+////~ Memory
+
+extern void* memset(void *dst, int val, size_t size);
+extern void* memmove(void*, void const*, usize);
+
+attribute_force_inline_func
+void mem_copy(void* dst, void const* src, usize n){
+	memmove(dst, src, n);
+}
+
+attribute_force_inline_func
+void mem_zero(void* ptr, usize n){
+	memset(ptr, 0, n);
+}

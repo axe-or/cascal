@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-static String token_type_names[TokenType__COUNT] = {
+static String token_type_names[Token_Type__COUNT] = {
 	[Tk_Unknown] = strlit("<Unknown>"),
 
 #define X(name, sym) [Tk_##name] = strlit(sym),
@@ -12,7 +12,7 @@ static String token_type_names[TokenType__COUNT] = {
 #undef X
 };
 
-static struct { String sym; TokenType type; } token_keywords[] = {
+static struct { String sym; Token_Type type; } token_keywords[] = {
 #define X(name, symbol) { .sym = strlit(symbol), .type = Tk_##name },
 	TOKEN_KEYWORDS
 #undef X
@@ -20,8 +20,8 @@ static struct { String sym; TokenType type; } token_keywords[] = {
 
 #define TOKEN_KEYWORD_COUNT (sizeof(token_keywords) / sizeof(token_keywords[0]))
 
-String token_type_name(TokenType t){
-	if(t < 0 || t >= TokenType__COUNT){
+String token_type_name(Token_Type t){
+	if(t < 0 || t >= Token_Type__COUNT){
 		return strlit("<INVALID TOKEN TYPE>");
 	}
 	return token_type_names[(int)t];
@@ -62,7 +62,7 @@ bool scan_take_if(Scanner* sc, rune expected){
 }
 
 static inline
-Scanner_Result scanner_result(TokenType type, i32 start, i32 end){
+Scanner_Result scanner_result(Token_Type type, i32 start, i32 end){
 	return (Scanner_Result){
 		.token = {
 			.type = type,
@@ -197,7 +197,7 @@ Scanner_Result scan_identifier(Scanner* sc, i32 start){
 		.v = &sc->source.v[start],
 		.len = sc->current - start,
 	};
-	TokenType type = Tk_Identifier;
+	Token_Type type = Tk_Identifier;
 
 	for(usize i = 0; i < TOKEN_KEYWORD_COUNT; i += 1){
 		if(str_equal(identifier, token_keywords[i].sym)){
@@ -421,7 +421,7 @@ Scanner_Result scan_next_token(Scanner* sc){
 		}
 	}
 
-	TokenType type = Tk_Unknown;
+	Token_Type type = Tk_Unknown;
 	if(r >= '0' && r <= '9'){
 		return scan_integer(sc, start, r);
 	}
