@@ -203,6 +203,10 @@ typedef struct {
 #define arena_make(arena, type, count) \
 	(type*)arena_alloc((arena), sizeof(type) * (count), alignof(type))
 
+// Push a value to area
+#define arena_make(arena, type, count) \
+	(type*)arena_alloc((arena), sizeof(type) * (count), alignof(type))
+
 // Discard all allocations without modifying the backing buffer.
 void arena_reset(Arena* a);
 
@@ -268,8 +272,11 @@ int sb_write_vfmt(String_Builder* sb, char const* format, va_list args);
 attribute_format(2, 3)
 int sb_write_fmt(String_Builder* sb, char const* format, ...);
 
-// Write single char to buffer
-void sb_write_char(String_Builder* sb, char c);
+// Write single byte to buffer
+void sb_write_byte(String_Builder* sb, u8 c);
+
+// Write an UTF-8 encoded rune to buffer
+void sb_write_rune(String_Builder* sb, rune r);
 
 // Pop the string from the builder and reset it. The result is null terminated for C-string compatibility.
 String sb_build(String_Builder* sb);

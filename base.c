@@ -389,13 +389,19 @@ int sb_write_fmt(String_Builder* sb, char const* format, ...){
 	return res;
 }
 
-void sb_write_char(String_Builder* sb, char c){
-	sb_write(sb, &c, 1);
+void sb_write_byte(String_Builder* sb, u8 c){
+	char s = c;
+	sb_write(sb, &s, 1);
+}
+
+void sb_write_rune(String_Builder *sb, rune r){
+	Rune_Encoded enc = rune_encode(r);
+	sb_write(sb, (char*)&enc.bytes, enc.size);
 }
 
 String sb_build(String_Builder* sb){
 	char* data = sb->buf;
-	sb_write_char(sb, '\0');
+	sb_write_byte(sb, '\0');
 
 	String res = {.v = data, .len = sb->len - 1};
 	sb->cap = 0;
@@ -409,7 +415,7 @@ String sb_get(String_Builder* sb){
 	char* data = sb->buf;
 
 	if(sb->len == sb->cap){ // Force append a null terminator if full
-		sb_write_char(sb, '\0');
+		sb_write_byte(sb, '\0');
 		sb->len -= 1;
 	}
 	else{

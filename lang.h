@@ -58,6 +58,19 @@
 	TOKEN_KEYWORDS \
 	X(EndOfFile, "<EOF>")
 
+static inline
+rune escape_sequence(rune c){
+	switch(c){
+	case 't': return '\t';
+	case 'r': return '\r';
+	case 'n': return '\n';
+	case '"': return '"';
+	case '\'': return '\'';
+	case '\\': return '\\';
+	}
+	return RUNE_ERROR;
+}
+
 // Types of token
 typedef enum {
 	Tk_Unknown = 0,
@@ -145,22 +158,16 @@ _Static_assert(NODE_POOL_SIZE < (1ull << NODE_AST_POOL_OFFSET_BITS), "node pool 
 
 _Static_assert((NODE_POOL_SIZE & (NODE_POOL_SIZE - 1)) == 0, "node pool size must be a power of 2");
 
-typedef struct {
-    Scanner scanner;
-} Parser;
+typedef struct Node Node;
 
 typedef struct {
-    u32 v;
-} Node_ID;
-
-typedef struct {
-    Node_ID left;
-    Node_ID right;
+    Node* left;
+    Node* right;
     Token_Type op;
 } Binary;
 
 typedef struct {
-    Node_ID operand;
+    Node* operand;
     Token_Type op;
 } Unary;
 
@@ -177,25 +184,27 @@ typedef enum {
 	Node_Type__COUNT,
 } Node_Type;
 
-typedef struct {
+struct Node {
+	Node* parent;
+
     union {
         Binary binary;
         Unary unary;
 		String ident;
+		String str;
 		i64 integer;
 		f64 real;
     } value;
 
 	Node_Type type;
-} Node;
+};
 
 typedef struct {
-    Node nodes[NODE_POOL_SIZE];
-    i32 usage;
-} Node_Pool;
-
-typedef struct {
-    Node_Pool* pools[AST_POOL_COUNT];
-    u32 active_pool_count;
+	Node* root;
     Arena* arena;
 } AST;
+
+typedef struct {
+    Scanner scanner;
+	AST ast;
+} Parser;

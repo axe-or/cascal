@@ -22,7 +22,6 @@ bool test_ex(struct Test* t, bool predicate, char const* msg, char const* file, 
 
 #define t_ensure(t, pred, msg) test_ex((t), (pred), (msg), __FILE__, __LINE__)
 
-
 typedef void (TestFunc)(struct Test* t);
 
 static inline

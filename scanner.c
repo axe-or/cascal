@@ -73,19 +73,6 @@ Scanner_Result scanner_result(Token_Type type, i32 start, i32 end){
 }
 
 static inline
-rune escape_sequence(rune c){
-	switch(c){
-	case 't': return '\t';
-	case 'r': return '\r';
-	case 'n': return '\n';
-	case '"': return '"';
-	case '\'': return '\'';
-	case '\\': return '\\';
-	}
-	return RUNE_ERROR;
-}
-
-static inline
 Scanner_Result scan_string(Scanner* sc, i32 start){
 	Error error = {0};
 
