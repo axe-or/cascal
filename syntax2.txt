@@ -1,30 +1,49 @@
-proc safe_div(a: Int, b: Int) -> (Int, Bool)
-do
-	if b == 0 then
+proc safe_div(a: Int, b: Int) -> (Int, Bool) {
+	if b == 0 {
 		return 0, false;
-	end
+	}
 	return a / b, true;
-end
+}
 
-proc main()
-var
-	q: Int;
-	ok: Bool;
-do
-	q, ok = safe_div(30, 0);
+proc main(){
+	var q, ok = safe_div(30, 0);
 	assert(ok, "Divide by zero");
-end
+}
 
-type Person = record
+struct Person {
 	age: Int,
 	name: String,
-end
+}
 
-type Node = variant
+enum Color {
+	Red, Green, Blue,
+}
+
+variant Node {
 	binary: Binary_Node,
 	unary: Unary_Node,
 	primary: Primary_Node,
-with
+} with {
 	parent: ^Node,
 	typ: Type,
-end
+}
+
+// Variant memory layout: Pointer to variant becomes pointer to any of its variants.
+// <Shared fields>
+// <Union fields>
+// <Tag>
+
+some_variant.parent = nil; // allowed, .parent is a shared field of variant.
+
+some_variant.binary; // Evals to `(Binary_Node, bool)`
+
+switch value in some_variant {
+case .binary:
+	// Within this scope value is Binary_Node
+
+case .unary:
+	// Within this scope value is Unary_Node
+	
+case primary:
+	// Within this scope value is Primary_Node
+}

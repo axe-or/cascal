@@ -102,9 +102,9 @@ bool mem_valid_alignment(usize align){
 }
 
 static inline
-uintptr_t mem_align_forward_ptr(uintptr_t p, uintptr_t a){
+uintptr mem_align_forward_ptr(uintptr p, uintptr a){
 	ensure(mem_valid_alignment(a), "alignment must be a power of 2 greater than 0");
-	uintptr_t mod = p & (a - 1); /* Fast modulo for powers of 2 */
+	uintptr mod = p & (a - 1); /* Fast modulo for powers of 2 */
 	if(mod > 0){
 		p += (a - mod);
 	}
@@ -118,9 +118,9 @@ void arena_reset(Arena* a){
 }
 
 bool arena_owns(Arena const* a, void const* ptr){
-	uintptr_t p    = (uintptr_t)ptr;
-	uintptr_t base = (uintptr_t)a->data;
-	uintptr_t end  = base + a->capacity;
+	uintptr p    = (uintptr)ptr;
+	uintptr base = (uintptr)a->data;
+	uintptr end  = base + a->capacity;
 
 	return p >= base && p < end;
 }
@@ -132,9 +132,9 @@ void* arena_alloc(Arena* a, usize size, usize align){
 
 	ensure(mem_valid_alignment(align), "invalid arena alignment");
 
-	uintptr_t base    = (uintptr_t)a->data;
-	uintptr_t current = base + a->offset;
-	uintptr_t aligned = mem_align_forward_ptr(current, align);
+	uintptr base    = (uintptr)a->data;
+	uintptr current = base + a->offset;
+	uintptr aligned = mem_align_forward_ptr(current, align);
 
 	usize padding = aligned - current;
 
@@ -174,8 +174,8 @@ bool arena_resize(Arena* a, void* ptr, usize new_size){
 		return false;
 	}
 
-	uintptr_t base      = (uintptr_t)a->data;
-	uintptr_t allocation = (uintptr_t)ptr;
+	uintptr base      = (uintptr)a->data;
+	uintptr allocation = (uintptr)ptr;
 
 	usize allocation_offset = allocation - base;
 
