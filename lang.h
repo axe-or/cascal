@@ -133,11 +133,11 @@ Scanner_Result scan_peek_token(Scanner const* sc);
 
 ////~ Parsing
 
-#define NODE_AST_POOL_BITS 5ull
+#define NODE_AST_POOL_BITS (5ull)
 
 #define NODE_AST_POOL_OFFSET_BITS (32ull - NODE_AST_POOL_BITS)
 
-#define NODE_POOL_SIZE 1024ull
+#define NODE_POOL_SIZE (1024ull)
 
 #define AST_POOL_COUNT (1ull << NODE_AST_POOL_BITS)
 
@@ -180,7 +180,7 @@ typedef enum {
 typedef struct {
     union {
         Binary binary;
-        Unary  unary;
+        Unary unary;
 		String ident;
 		i64 integer;
 		f64 real;

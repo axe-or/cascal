@@ -1,57 +1,49 @@
-// Comments
+proc safe_div(a: Int, b: Int) -> (Int, Bool) {
+	if b == 0 {
+		return 0, false;
+	}
+	return a / b, true;
+}
 
-// Literals
-const
-	// Numerical constants (`_`s are ignored and serve as separators
-	bin: Int = 0b1010101;
-	oct: Int = 0o755;
-	hex: Int = 0xff_ffd;
-	dec: Int = 123_6789;
+proc main(){
+	var q, ok = safe_div(30, 0);
+	assert(ok, "Divide by zero");
+}
 
-	// Booleans
-	yes: Bool = true;
-	no: Bool = false;
+struct Person {
+	age: Int,
+	name: String,
+}
 
-	// Strings
-	msg: String = "Hello";
+enum Color {
+	Red, Green, Blue,
+}
 
-
-// Variant types (tagged unions, but can have common fields)
-type Node = variant of
+variant Node {
 	binary: Binary_Node,
 	unary: Unary_Node,
 	primary: Primary_Node,
-with
+} with {
 	parent: ^Node,
 	typ: Type,
-end
+}
 
-// Procedures and control flow
-proc foo(n: Int) -> (int, int): // Tuple
-	var
-		x: Int = 10;
-		y: Int; // Zero initialized is default
+// Variant memory layout: Pointer to variant becomes pointer to any of its variants.
+// <Shared fields>
+// <Union fields>
+// <Tag>
 
-		tup: My_Tuple;
-begin
-	y = match x with
-		value -> value,
-		error -> error,
-	end;
+some_variant.parent = nil; // allowed, .parent is a shared field of variant.
 
-	// variant checking
-	// expr `is` variant_label (`as` alt_name)?
-	if x is error as e do
-		return e;
-	end
+some_variant.binary; // Evals to `(Binary_Node, bool)`
 
-	// shorthands that work for Option[T] and Result[T, E]
-	y = x or_return;
-	y = x or_else 0;
+switch value in some_variant {
+case .binary:
+	// Within this scope value is Binary_Node
 
-	for n > 0 do
-		x = x * 2;
-		y = y + 1;
-	end
-
-end
+case .unary:
+	// Within this scope value is Unary_Node
+	
+case primary:
+	// Within this scope value is Primary_Node
+}

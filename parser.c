@@ -64,3 +64,13 @@ Node* ast_get(AST* ast, Node_ID id){
 
     return &pool->nodes[offset];
 }
+
+static inline
+Node_ID ast_make_unary(AST* ast, Token_Type op, Node_ID operand){
+    panic("todo");
+}
+
+static inline
+Node_ID ast_make_binary(AST* ast, Token_Type op, Node_ID left, Node_ID right){
+    panic("todo");
+}
