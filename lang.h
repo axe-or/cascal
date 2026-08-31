@@ -208,3 +208,8 @@ typedef struct {
     Scanner scanner;
 	AST ast;
 } Parser;
+
+typedef struct {
+	Node* node;
+	Error error;
+} Parser_Result;
