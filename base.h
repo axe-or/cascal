@@ -133,6 +133,9 @@ typedef struct {
 // Helper macro to turn usual C-strings into sized strings
 #define strlit(s) ((String){.v = (char const*)("" s ""), .len = (sizeof(s) - 1)})
 
+// Compare two strings by length and contents.
+bool str_equal(String a, String b);
+
 // Length of a C-style string
 static inline
 isize cstring_len(cstring cs) {

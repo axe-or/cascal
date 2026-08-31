@@ -253,6 +253,39 @@ static Scanner_Result scan_string(Scanner* sc, i32 start){
 }
 
 static inline
+bool is_identifier_start(rune r){
+	return (r >= 'a' && r <= 'z')
+		|| (r >= 'A' && r <= 'Z')
+		|| r == '_';
+}
+
+static inline
+bool is_identifier_continue(rune r){
+	return is_identifier_start(r) || (r >= '0' && r <= '9');
+}
+
+static Scanner_Result scan_identifier(Scanner* sc, i32 start){
+	while(is_identifier_continue(scan_peek(sc, 0))){
+		scan_next(sc);
+	}
+
+	String identifier = {
+		.v = &sc->source.v[start],
+		.len = sc->current - start,
+	};
+	TokenType type = Tk_Identifier;
+
+	for(usize i = 0; i < TOKEN_KEYWORD_COUNT; i += 1){
+		if(str_equal(identifier, token_keywords[i].sym)){
+			type = token_keywords[i].type;
+			break;
+		}
+	}
+
+	return scanner_result(type, start, sc->current);
+}
+
+static inline
 i32 base_of(rune c){
 	switch(c){
 	case 'b': case 'B': return 2;
@@ -449,6 +482,9 @@ Scanner_Result scanner_next_token(Scanner* sc){
 	}
 	if(r == '"'){
 		return scan_string(sc, start);
+	}
+	if(is_identifier_start(r)){
+		return scan_identifier(sc, start);
 	}
 
 	switch(r){
