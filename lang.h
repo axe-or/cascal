@@ -130,3 +130,72 @@ Scanner_Result scan_next_token(Scanner* sc);
 
 // Scan the current token but do not advance
 Scanner_Result scan_peek_token(Scanner const* sc);
+
+////~ Parsing
+
+#define NODE_AST_POOL_BITS 5ull
+
+#define NODE_AST_POOL_OFFSET_BITS (32ull - NODE_AST_POOL_BITS)
+
+#define NODE_POOL_SIZE 1024ull
+
+#define AST_POOL_COUNT (1ull << NODE_AST_POOL_BITS)
+
+_Static_assert(NODE_POOL_SIZE < (1ull << NODE_AST_POOL_OFFSET_BITS), "node pool size is too big");
+
+_Static_assert((NODE_POOL_SIZE & (NODE_POOL_SIZE - 1)) == 0, "node pool size must be a power of 2");
+
+typedef struct {
+    Scanner scanner;
+} Parser;
+
+typedef struct {
+    u32 v;
+} Node_ID;
+
+typedef struct {
+    Node_ID left;
+    Node_ID right;
+    Token_Type op;
+} Binary;
+
+typedef struct {
+    Node_ID operand;
+    Token_Type op;
+} Unary;
+
+typedef enum {
+	Node_Unknown = 0,
+
+	Node_Integer,
+	Node_Real,
+	Node_String,
+	Node_Identifier,
+	Node_Unary,
+	Node_Binary,
+
+	Node_Type__COUNT,
+} Node_Type;
+
+typedef struct {
+    union {
+        Binary binary;
+        Unary  unary;
+		String ident;
+		i64 integer;
+		f64 real;
+    } value;
+
+	Node_Type type;
+} Node;
+
+typedef struct {
+    Node nodes[NODE_POOL_SIZE];
+    i32 usage;
+} Node_Pool;
+
+typedef struct {
+    Node_Pool* pools[AST_POOL_COUNT];
+    u32 active_pool_count;
+    Arena* arena;
+} AST;
