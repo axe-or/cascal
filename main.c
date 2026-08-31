@@ -90,6 +90,7 @@ enum Error_Type {
 	Err_InvalidEscapeSequence,
 	Err_InvalidStringChar,
 	Err_UnclosedString,
+	Err_UnclosedComment,
 
 	// Parser errors
 	Err_UnexpectedToken,
@@ -250,6 +251,41 @@ static Scanner_Result scan_string(Scanner* sc, i32 start){
 			};
 		}
 	}
+}
+
+static Error scan_comment(Scanner* sc){
+	rune kind = scan_next(sc);
+	if(kind == '/'){
+		while(sc->current < sc->source.len){
+			rune r = scan_next(sc);
+			if(r == '\n'){
+				break;
+			}
+			if(r == '\r'){
+				scan_take_if(sc, '\n');
+				break;
+			}
+		}
+		return (Error){0};
+	}
+
+	i32 depth = 1;
+	while(sc->current < sc->source.len){
+		rune r = scan_next(sc);
+		if(r == '/' && scan_take_if(sc, '*')){
+			depth += 1;
+		} else if(r == '*' && scan_take_if(sc, '/')){
+			depth -= 1;
+			if(depth == 0){
+				return (Error){0};
+			}
+		}
+	}
+
+	return (Error){
+		.offset = sc->current,
+		.typ = Err_UnclosedComment,
+	};
 }
 
 static inline
@@ -474,8 +510,24 @@ static Scanner_Result scan_integer(Scanner* sc, i32 start, rune first){
 }
 
 Scanner_Result scanner_next_token(Scanner* sc){
-	i32 start = sc->current;
-	rune r = scan_next(sc);
+	i32 start;
+	rune r;
+
+	for(;;){
+		start = sc->current;
+		r = scan_next(sc);
+		if(r != '/' || (scan_peek(sc, 0) != '/' && scan_peek(sc, 0) != '*')){
+			break;
+		}
+
+		Error error = scan_comment(sc);
+		if(error.typ != Err_None){
+			Scanner_Result result = scanner_result(Tk_Unknown, start, sc->current);
+			result.error = error;
+			return result;
+		}
+	}
+
 	TokenType type = Tk_Unknown;
 	if(r >= '0' && r <= '9'){
 		return scan_integer(sc, start, r);
