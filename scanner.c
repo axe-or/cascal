@@ -62,6 +62,12 @@ bool scan_take_if(Scanner* sc, rune expected){
 }
 
 static inline
+bool is_space(rune r){
+	return r == ' ' || r == '\t' || r == '\n'
+		|| r == '\r' || r == '\f' || r == '\v';
+}
+
+static inline
 Scanner_Result scanner_result(Token_Type type, i32 start, i32 end){
 	return (Scanner_Result){
 		.token = {
@@ -394,6 +400,10 @@ Scanner_Result scan_next_token(Scanner* sc){
 	rune r;
 
 	for(;;){
+		while(is_space(scan_peek(sc, 0))){
+			scan_next(sc);
+		}
+
 		start = sc->current;
 		r = scan_next(sc);
 		if(r != '/' || (scan_peek(sc, 0) != '/' && scan_peek(sc, 0) != '*')){
