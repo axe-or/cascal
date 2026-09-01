@@ -346,14 +346,20 @@ static inline
 Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim){
     Parser_Result res = {0};
 
+    Node* first = NULL;
+    Node* last = NULL;
+
     for(;;){
         Parser_Result exp = parse_expression(parser);
         if(has_error(exp)){ return exp; }
 
-        if(res.node){
-            res.node->next = exp.node;
+        if(!first){
+            first = exp.node;
+            last = exp.node;
+        } else {
+            last->next = exp.node;
+            last = exp.node;
         }
-        res.node = exp.node;
 
         Token current = parser_peek(parser);
         if(current.type == Tk_Comma){
@@ -370,6 +376,7 @@ Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim){
         }
     }
 
+    res.node = first;
     return res;
 }
 
