@@ -9,6 +9,7 @@
 	X(If, "if") \
 	X(Else, "else") \
 	X(For, "for") \
+	X(While, "while") \
 	X(Proc, "proc") \
 	X(Break, "break") \
 	X(Continue, "continue") \
@@ -36,6 +37,7 @@
 	X(Colon, ":") \
 	X(Comma, ",") \
 	X(Dot, ".") \
+	X(Arrow, "->") \
 	X(Assign, "=") \
 	X(Semicolon, ";") \
 	X(Plus, "+") \
@@ -180,13 +182,19 @@ struct Parser_Type {
 		String name;
 
 		struct {
-			Parser_Type* element;
+			Node* element;
 			u32 length;
 		};
 	} value;
 
 	Parser_Type_Kind kind;
 };
+
+typedef struct {
+	Node* first;
+	Node* last;
+} Node_List;
+
 
 typedef struct {
     Node* left;
@@ -205,9 +213,16 @@ typedef struct {
 } Index;
 
 typedef struct {
-	Node* first;
-	Node* last;
-} Node_List;
+	String identifier;
+	Node* type;
+} Field;
+
+typedef struct {
+	String name;
+	Node_List args; // All `Field`
+	Node_List returns; // Optional, list of type nodes
+	Node* body;
+} Proc_Definition;
 
 typedef struct {
 	Node_List left;
@@ -216,7 +231,7 @@ typedef struct {
 
 typedef struct {
 	Node_List idents; // All must be identifiers
-	Parser_Type* type;
+	Node* type;
 	Node_List values;
 } Var_Definition;
 
@@ -224,6 +239,25 @@ typedef struct {
 	Node* callable;
 	Node_List args;
 } Call;
+
+typedef struct {
+	Node_List statements;
+} Block;
+
+typedef struct {
+	Node_List values;
+} Return_Statement;
+
+typedef struct {
+	Node* condition;
+	Node* then_block;
+	Node* else_branch;
+} If_Statement;
+
+typedef struct {
+	Node* condition;
+	Node* body;
+} While_Statement;
 
 typedef enum {
 	Node_Unknown = 0,
@@ -237,7 +271,17 @@ typedef enum {
 	Node_Binary,
 	Node_Index,
 	Node_Call,
+	Node_Field,
+	Node_ParserType,
 	Node_VarDefinition,
+	Node_Assignment,
+	Node_Block,
+	Node_Return,
+	Node_Break,
+	Node_Continue,
+	Node_If,
+	Node_While,
+	Node_ProcDefinition,
 
 	Node_Type__COUNT,
 } Node_Type;
@@ -257,7 +301,15 @@ struct Node {
         Binary binary;
 		Index index;
 		Call call;
+		Field field;
+		Parser_Type parser_type;
 		Var_Definition var_definition;
+		Assignment assignment;
+		Block block;
+		Return_Statement return_statement;
+		If_Statement if_statement;
+		While_Statement while_statement;
+		Proc_Definition proc_definition;
     } value;
 
 	Node_Type type;
@@ -291,10 +343,5 @@ typedef struct {
 	Node* last_node;
 	Error error;
 } Parser_Result;
-
-typedef struct {
-	Parser_Type* type;
-	Error error;
-} Parser_Type_Result;
 
 Error parse(String source, AST* ast, Arena* arena);

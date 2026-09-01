@@ -40,4 +40,17 @@ void scanner_tests(Test* t){
 
 	Scanner unclosed_comment = {.source = strlit("/* outer /* inner */")};
 	t_pred(t, scan_next_token(&unclosed_comment).error.typ == Err_UnclosedComment);
+
+	Scanner procedure_tokens = {.source = strlit("-> while -")};
+	Token_Type procedure_expected[] = {
+		Tk_Arrow,
+		Tk_While,
+		Tk_Minus,
+		Tk_EndOfFile,
+	};
+	for(usize i = 0; i < sizeof(procedure_expected) / sizeof(procedure_expected[0]); i += 1){
+		Scanner_Result result = scan_next_token(&procedure_tokens);
+		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.token.type == procedure_expected[i]);
+	}
 }

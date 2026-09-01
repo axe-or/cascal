@@ -25,6 +25,7 @@ int main(){
 
 	AST ast = {0};
 	parse(source, &ast, &arena);
+	node_format((IO_Writer){io_stdout()}, ast.root);
 }
 
 #include "base.c"

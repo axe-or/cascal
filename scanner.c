@@ -443,7 +443,7 @@ Scanner_Result scan_next_token(Scanner* sc){
 	case '.': type = Tk_Dot; break;
 	case ';': type = Tk_Semicolon; break;
 	case '+': type = Tk_Plus; break;
-	case '-': type = Tk_Minus; break;
+	case '-': type = scan_take_if(sc, '>') ? Tk_Arrow : Tk_Minus; break;
 	case '*': type = Tk_Star; break;
 	case '/': type = Tk_Slash; break;
 	case '%': type = Tk_Modulo; break;

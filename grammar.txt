@@ -22,7 +22,7 @@ IdentList :=
     | IDENTIFIER
 
 ExpressionList :=
-    | Expr ',' IdentList
+    | Expr ',' ExpressionList
     | Expr
 
 // NOTE: Not enforced by grammar, but both lists must have the same cardinality
@@ -34,7 +34,7 @@ Return := 'return' ExpressionList?
 
 Break := 'break' IDENTIFIER?
 
-Continue := 'break' IDENTIFIER?
+Continue := 'continue' IDENTIFIER?
 
 Statement :=
     | VarDecl ';'
@@ -54,10 +54,10 @@ While := 'while' Expression Block
 // NOTE: Not enforced by grammar, but both lists must have the same cardinality
 Assignment := ExpressionList '=' ExpressionList
 
-Fields := IdentList ':' Type
+Field := IdentList ':' Type
 
 FieldList :=
-    | Fields
-    | Fields ',' FieldList
+    | Field
+    | Field ',' FieldList
 
-ProcDecl := 'proc' '(' FieldList? TrailingComma ')' ('->' (Type | '(' TypeList ')'))? Block
+ProcDecl := 'proc' IDENTIFIER '(' FieldList? TrailingComma ')' ('->' (Type | '(' TypeList ')'))? Block

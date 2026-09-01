@@ -205,10 +205,6 @@ typedef struct {
 #define arena_make(arena, type, count) \
 	(type*)arena_alloc((arena), sizeof(type) * (count), alignof(type))
 
-// Push a value to area
-#define arena_make(arena, type, count) \
-	(type*)arena_alloc((arena), sizeof(type) * (count), alignof(type))
-
 // Discard all allocations without modifying the backing buffer.
 void arena_reset(Arena* a);
 
@@ -323,6 +319,9 @@ typedef struct {
 	void* impl;
 	IO_Stream_Func fn;
 } IO_Stream;
+
+// Create a non-owning stream that writes to standard output.
+IO_Stream io_stdout(void);
 
 static inline
 i32 io_query(IO_Stream w, u8* buf, isize buflen){

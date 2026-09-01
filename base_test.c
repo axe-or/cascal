@@ -109,5 +109,12 @@ void base_tests(Test* t){
 		t_pred(t, str_equal(result, strlit("hello world 42")));
 	}
 
+	{
+		IO_Stream output = io_stdout();
+		u8 ignored = 0;
+		t_pred(t, io_query(output, NULL, 0) == IO_Write);
+		t_pred(t, io_write(output, &ignored, 0) == 0);
+	}
+
 	t_pred(t, fmt_write((IO_Writer){0}, "closed") == IO_Err_Closed);
 }

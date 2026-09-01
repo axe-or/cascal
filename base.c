@@ -411,6 +411,32 @@ String sb_get(String_Builder* sb){
 }
 
 static
+isize stdout_stream_func(void* impl, IO_Mode mode, u8* buf, isize buflen){
+	(void)impl;
+	ensure(buflen >= 0, "invalid buffer len");
+
+	switch(mode){
+	case IO_Query:
+		return IO_Write;
+	case IO_Read:
+	case IO_Close:
+		return IO_Err_Unsupported;
+	case IO_Write: {
+		size_t written = fwrite(buf, 1, (size_t)buflen, stdout);
+		return written == 0 && buflen != 0 && ferror(stdout)
+			? IO_Err_Other
+			: (isize)written;
+	}
+	default:
+		return IO_Err_Unsupported;
+	}
+}
+
+IO_Stream io_stdout(void){
+	return (IO_Stream){.fn = stdout_stream_func};
+}
+
+static
 isize sb_writer_stream_func(void* impl, IO_Mode mode, u8* buf, isize buflen){
 	String_Builder* sb = impl;
 	ensure(buflen >= 0, "invalid buffer len");

@@ -36,10 +36,11 @@ static bool is_identifier(Node const* node, String ident){
 		&& str_equal(node->value.ident, ident);
 }
 
-static bool is_named_parser_type(Parser_Type const* type, String name){
+static bool is_named_parser_type(Node const* type, String name){
 	return type != NULL
-		&& type->kind == ParserType_Named
-		&& str_equal(type->value.name, name);
+		&& type->type == Node_ParserType
+		&& type->value.parser_type.kind == ParserType_Named
+		&& str_equal(type->value.parser_type.value.name, name);
 }
 
 static void expect_node_format(Test* t, Node* node, String expected){
@@ -170,18 +171,35 @@ void parser_tests(Test* t){
 	{
 		Parser_Fixture fixture;
 		parser_fixture_init(strlit("[32][]^Item"), &fixture);
-		Parser_Type_Result result = parse_type(&fixture.parser);
+		Parser_Result result = parse_type(&fixture.parser);
 		t_pred(t, result.error.typ == Err_None);
-		t_pred(t, result.type != NULL && result.type->kind == ParserType_Array);
-		if(result.type != NULL && result.type->kind == ParserType_Array){
-			t_pred(t, result.type->value.length == 32);
-			Parser_Type* slice = result.type->value.element;
-			t_pred(t, slice != NULL && slice->kind == ParserType_Slice);
-			if(slice != NULL && slice->kind == ParserType_Slice){
-				Parser_Type* pointer = slice->value.element;
-				t_pred(t, pointer != NULL && pointer->kind == ParserType_Pointer);
-				if(pointer != NULL && pointer->kind == ParserType_Pointer){
-					t_pred(t, is_named_parser_type(pointer->value.element, strlit("Item")));
+		t_pred(t, result.node != NULL
+			&& result.node->type == Node_ParserType
+			&& result.node->value.parser_type.kind == ParserType_Array);
+		if(result.node != NULL
+			&& result.node->type == Node_ParserType
+			&& result.node->value.parser_type.kind == ParserType_Array){
+			t_pred(t, result.node->value.parser_type.value.length == 32);
+			Node* slice = result.node->value.parser_type.value.element;
+			t_pred(t, slice != NULL
+				&& slice->type == Node_ParserType
+				&& slice->value.parser_type.kind == ParserType_Slice);
+			t_pred(t, slice != NULL && slice->parent == result.node);
+			if(slice != NULL
+				&& slice->type == Node_ParserType
+				&& slice->value.parser_type.kind == ParserType_Slice){
+				Node* pointer = slice->value.parser_type.value.element;
+				t_pred(t, pointer != NULL
+					&& pointer->type == Node_ParserType
+					&& pointer->value.parser_type.kind == ParserType_Pointer);
+				t_pred(t, pointer != NULL && pointer->parent == slice);
+				if(pointer != NULL
+					&& pointer->type == Node_ParserType
+					&& pointer->value.parser_type.kind == ParserType_Pointer){
+					t_pred(t, is_named_parser_type(
+						pointer->value.parser_type.value.element,
+						strlit("Item")
+					));
 				}
 			}
 		}
@@ -191,8 +209,8 @@ void parser_tests(Test* t){
 	{
 		Parser_Fixture fixture;
 		parser_fixture_init(strlit("[]"), &fixture);
-		Parser_Type_Result result = parse_type(&fixture.parser);
-		t_pred(t, result.type == NULL);
+		Parser_Result result = parse_type(&fixture.parser);
+		t_pred(t, result.node == NULL);
 		t_pred(t, result.error.typ == Err_UnexpectedToken);
 		t_pred(t, result.error.got.token_type == Tk_EndOfFile);
 	}
@@ -246,19 +264,30 @@ void parser_tests(Test* t){
 			t_pred(t, is_identifier(definition->idents.first, strlit("first")));
 			t_pred(t, is_identifier(definition->idents.last, strlit("second")));
 			t_pred(t, definition->type != NULL
-				&& definition->type->kind == ParserType_Array
-				&& definition->type->value.length == 4);
-			if(definition->type != NULL && definition->type->kind == ParserType_Array){
-				Parser_Type* pointer = definition->type->value.element;
-				t_pred(t, pointer != NULL && pointer->kind == ParserType_Pointer);
-				if(pointer != NULL && pointer->kind == ParserType_Pointer){
-					t_pred(t, is_named_parser_type(pointer->value.element, strlit("Int")));
+				&& definition->type->type == Node_ParserType
+				&& definition->type->value.parser_type.kind == ParserType_Array
+				&& definition->type->value.parser_type.value.length == 4);
+			if(definition->type != NULL
+				&& definition->type->type == Node_ParserType
+				&& definition->type->value.parser_type.kind == ParserType_Array){
+				Node* pointer = definition->type->value.parser_type.value.element;
+				t_pred(t, pointer != NULL
+					&& pointer->type == Node_ParserType
+					&& pointer->value.parser_type.kind == ParserType_Pointer);
+				if(pointer != NULL
+					&& pointer->type == Node_ParserType
+					&& pointer->value.parser_type.kind == ParserType_Pointer){
+					t_pred(t, is_named_parser_type(
+						pointer->value.parser_type.value.element,
+						strlit("Int")
+					));
 				}
 			}
 			t_pred(t, node_list_cardinality(definition->values) == 2);
 			t_pred(t, is_binary(definition->values.first, Tk_Plus));
 			t_pred(t, is_identifier(definition->values.last, strlit("other")));
 			t_pred(t, definition->idents.first->parent == result.node);
+			t_pred(t, definition->type->parent == result.node);
 			t_pred(t, definition->values.first->parent == result.node);
 		}
 		t_pred(t, scan_peek_token(&fixture.parser.scanner).token.type == Tk_Semicolon);
@@ -326,5 +355,122 @@ void parser_tests(Test* t){
 		};
 
 		expect_node_format(t, &call, strlit("(call ([] items 2) 3.5 false)"));
+	}
+
+	{
+		Parser_Fixture fixture;
+		Parser_Result result = parse_test_expression(strlit("items(1, value,)[2]"), &fixture);
+		t_pred(t, !has_error(result));
+		t_pred(t, result.node != NULL && result.node->type == Node_Index);
+		if(result.node != NULL && result.node->type == Node_Index){
+			Index* index = &result.node->value.index;
+			t_pred(t, is_integer(index->idx, 2));
+			t_pred(t, index->object != NULL && index->object->type == Node_Call);
+			if(index->object != NULL && index->object->type == Node_Call){
+				Call* call = &index->object->value.call;
+				t_pred(t, is_identifier(call->callable, strlit("items")));
+				t_pred(t, node_list_cardinality(call->args) == 2);
+				t_pred(t, is_integer(call->args.first, 1));
+				t_pred(t, is_identifier(call->args.last, strlit("value")));
+			}
+		}
+	}
+
+	{
+		u8 memory[64 * 1024];
+		Arena arena = arena_from_buffer(memory, sizeof(memory));
+		AST ast = {0};
+		Error error = parse(
+			strlit(
+				"proc foo(a, b, c: int, d: bool) -> (int, bool) {"
+				"  var x, y: int = 1, 2;"
+				"  x, y = y, x;"
+				"  while x {"
+				"    if y { break done; } else { continue; }"
+				"  }"
+				"  return a, d;"
+				"}"
+				"proc bar(,) -> ^int {}"
+			),
+			&ast,
+			&arena
+		);
+		t_pred(t, error.typ == Err_None);
+		t_pred(t, ast.root != NULL && ast.root->type == Node_ProcDefinition);
+		if(ast.root != NULL && ast.root->type == Node_ProcDefinition){
+			Node* foo_node = ast.root;
+			Proc_Definition* foo = &foo_node->value.proc_definition;
+			t_pred(t, str_equal(foo->name, strlit("foo")));
+			t_pred(t, node_list_cardinality(foo->args) == 4);
+
+			Node* a = foo->args.first;
+			Node* b = a == NULL ? NULL : a->next;
+			Node* c = b == NULL ? NULL : b->next;
+			Node* d = c == NULL ? NULL : c->next;
+			t_pred(t, a != NULL && a->type == Node_Field);
+			t_pred(t, b != NULL && b->type == Node_Field);
+			t_pred(t, c != NULL && c->type == Node_Field);
+			t_pred(t, d != NULL && d->type == Node_Field);
+			if(a != NULL && b != NULL && c != NULL && d != NULL){
+				t_pred(t, str_equal(a->value.field.identifier, strlit("a")));
+				t_pred(t, str_equal(b->value.field.identifier, strlit("b")));
+				t_pred(t, str_equal(c->value.field.identifier, strlit("c")));
+				t_pred(t, str_equal(d->value.field.identifier, strlit("d")));
+				t_pred(t, a->value.field.type == b->value.field.type);
+				t_pred(t, b->value.field.type == c->value.field.type);
+				t_pred(t, is_named_parser_type(c->value.field.type, strlit("int")));
+				t_pred(t, is_named_parser_type(d->value.field.type, strlit("bool")));
+				t_pred(t, a->parent == foo_node && d->parent == foo_node);
+			}
+
+			t_pred(t, node_list_cardinality(foo->returns) == 2);
+			t_pred(t, foo->returns.first != NULL
+				&& foo->returns.first->type == Node_ParserType
+				&& is_named_parser_type(foo->returns.first, strlit("int")));
+			t_pred(t, foo->returns.last != NULL
+				&& foo->returns.last->type == Node_ParserType
+				&& is_named_parser_type(foo->returns.last, strlit("bool")));
+
+			t_pred(t, foo->body != NULL && foo->body->type == Node_Block);
+			if(foo->body != NULL && foo->body->type == Node_Block){
+				Node_List statements = foo->body->value.block.statements;
+				t_pred(t, node_list_cardinality(statements) == 4);
+				t_pred(t, statements.first != NULL
+					&& statements.first->type == Node_VarDefinition);
+				t_pred(t, statements.first != NULL
+					&& statements.first->next != NULL
+					&& statements.first->next->type == Node_Assignment);
+				t_pred(t, statements.last != NULL && statements.last->type == Node_Return);
+			}
+
+			Node* bar_node = foo_node->next;
+			t_pred(t, bar_node != NULL && bar_node->type == Node_ProcDefinition);
+			if(bar_node != NULL && bar_node->type == Node_ProcDefinition){
+				Proc_Definition* bar = &bar_node->value.proc_definition;
+				t_pred(t, str_equal(bar->name, strlit("bar")));
+				t_pred(t, bar->args.first == NULL && bar->args.last == NULL);
+				t_pred(t, node_list_cardinality(bar->returns) == 1);
+				t_pred(t, bar->returns.first != NULL
+					&& bar->returns.first->type == Node_ParserType
+					&& bar->returns.first->value.parser_type.kind == ParserType_Pointer
+					&& is_named_parser_type(
+						bar->returns.first->value.parser_type.value.element,
+						strlit("int")
+					));
+				t_pred(t, bar_node->next == NULL);
+				expect_node_format(t, bar_node, strlit("(proc bar () (^int) (block))"));
+			}
+		}
+	}
+
+	{
+		u8 memory[4096];
+		Arena arena = arena_from_buffer(memory, sizeof(memory));
+		AST ast = {0};
+		Error error = parse(strlit("var value: int = 1;"), &ast, &arena);
+		t_pred(t, error.typ == Err_UnexpectedToken);
+		t_pred(t, error.expected.token_type == Tk_Proc);
+		t_pred(t, error.got.token_type == Tk_Var);
+		t_pred(t, ast.root == NULL);
 	}
 }
