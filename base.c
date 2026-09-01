@@ -369,13 +369,6 @@ isize sb_write(String_Builder* sb, char const* data, isize n){
 	return n;
 }
 
-static inline
-char* stb_printf_str_builder_adapter(char const* buf, void* user, int len){
-	String_Builder* sb = (String_Builder*)user;
-	sb_write(sb, buf, len);
-	return NULL;
-}
-
 isize sb_write_byte(String_Builder* sb, u8 c){
 	char s = c;
 	return sb_write(sb, &s, 1);
@@ -430,7 +423,12 @@ isize sb_writer_stream_func(void* impl, IO_Mode mode, u8* buf, isize buflen){
 		return IO_Err_Unsupported;
 
 	case IO_Write: {
-		sb_write(sb, (char const*)buf, (int)buflen);
+		if(sb->arena == NULL && sb->cap == 0){
+			return IO_Err_Closed;
+		}
+		if(sb_write(sb, (char const*)buf, buflen) < 0){
+			return IO_Err_Other;
+		}
 		return buflen;
 	}
 
