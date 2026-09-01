@@ -200,6 +200,11 @@ typedef struct {
 } Unary;
 
 typedef struct {
+	Node* object;
+	Node* idx;
+} Index;
+
+typedef struct {
 	Node* first;
 	Node* last;
 } Node_List;
@@ -250,6 +255,7 @@ struct Node {
 
         Unary unary;
         Binary binary;
+		Index index;
 		Call call;
 		Var_Definition var_definition;
     } value;
@@ -265,6 +271,9 @@ i32 node_list_cardinality(Node_List l){
 	}
 	return n;
 }
+
+// Format a node as an S-expression
+isize node_format(IO_Writer writer, Node* node);
 
 typedef struct {
 	Node* root;

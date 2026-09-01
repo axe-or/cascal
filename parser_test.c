@@ -42,6 +42,17 @@ static bool is_named_parser_type(Parser_Type const* type, String name){
 		&& str_equal(type->value.name, name);
 }
 
+static void expect_node_format(Test* t, Node* node, String expected){
+	u8 memory[4096];
+	Arena arena = arena_from_buffer(memory, sizeof(memory));
+	String_Builder builder = sb_make(64, &arena);
+	isize written = node_format(sb_writer(&builder), node);
+	String actual = sb_get(&builder);
+
+	t_pred(t, written == expected.len);
+	t_pred(t, str_equal(actual, expected));
+}
+
 void parser_tests(Test* t){
 	t->name = "parser";
 
@@ -261,5 +272,59 @@ void parser_tests(Test* t){
 		t_pred(t, result.error.typ == Err_MismatchedListCardinality);
 		t_pred(t, result.error.expected.cardinality == 2);
 		t_pred(t, result.error.got.cardinality == 1);
+	}
+
+	{
+		Parser_Fixture fixture;
+		Parser_Result result = parse_test_expression(strlit("1 + 2 * -value"), &fixture);
+		t_pred(t, !has_error(result));
+		expect_node_format(t, result.node, strlit("(+ 1 (* 2 (- value)))"));
+	}
+
+	{
+		Parser_Fixture fixture;
+		Parser_Result result = parse_test_expression(
+			strlit("\"line\\n\\\"quoted\\\"\\\\\""),
+			&fixture
+		);
+		t_pred(t, !has_error(result));
+		expect_node_format(t, result.node, strlit("\"line\\n\\\"quoted\\\"\\\\\""));
+	}
+
+	{
+		Node object = {
+			.type = Node_Identifier,
+			.value.ident = strlit("items"),
+		};
+		Node idx = {
+			.type = Node_Integer,
+			.value.integer = 2,
+		};
+		Node index = {
+			.type = Node_Index,
+			.value.index = {
+				.object = &object,
+				.idx = &idx,
+			},
+		};
+		Node first_arg = {
+			.next = NULL,
+			.type = Node_Real,
+			.value.real = 3.5,
+		};
+		Node second_arg = {
+			.type = Node_Boolean,
+			.value.boolean = false,
+		};
+		first_arg.next = &second_arg;
+		Node call = {
+			.type = Node_Call,
+			.value.call = {
+				.callable = &index,
+				.args = {.first = &first_arg, .last = &second_arg},
+			},
+		};
+
+		expect_node_format(t, &call, strlit("(call ([] items 2) 3.5 false)"));
 	}
 }

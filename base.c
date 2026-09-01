@@ -355,7 +355,7 @@ void sb_clear(String_Builder* sb){
 	if(sb->cap > 0) sb->buf[0] = 0;
 }
 
-void sb_write(String_Builder* sb, char const* data, int n){
+isize sb_write(String_Builder* sb, char const* data, isize n){
 	if((sb->len + n) >= sb->cap){
 		int new_cap = max(16, max(sb->len + n + 1, sb->cap * 2));
 		sb->buf = arena_realloc(sb->arena, sb->buf, sb->cap, new_cap, alignof(char));
@@ -366,6 +366,7 @@ void sb_write(String_Builder* sb, char const* data, int n){
 	mem_copy(&sb->buf[sb->len], data, n);
 	sb->len += n;
 	sb->buf[sb->len] = 0;
+	return n;
 }
 
 static inline
@@ -375,28 +376,14 @@ char* stb_printf_str_builder_adapter(char const* buf, void* user, int len){
 	return NULL;
 }
 
-int sb_write_vfmt(String_Builder* sb, char const* format, va_list args){
-	char buf[STB_SPRINTF_MIN + 64] = {0};
-	return stbsp_vsprintfcb(stb_printf_str_builder_adapter, sb, &buf[0], format, args);
-}
-
-attribute_format(2, 3)
-int sb_write_fmt(String_Builder* sb, char const* format, ...){
-	va_list args;
-	va_start(args, format);
-	int res = sb_write_vfmt(sb, format, args);
-	va_end(args);
-	return res;
-}
-
-void sb_write_byte(String_Builder* sb, u8 c){
+isize sb_write_byte(String_Builder* sb, u8 c){
 	char s = c;
-	sb_write(sb, &s, 1);
+	return sb_write(sb, &s, 1);
 }
 
-void sb_write_rune(String_Builder *sb, rune r){
+isize sb_write_rune(String_Builder *sb, rune r){
 	Rune_Encoded enc = rune_encode(r);
-	sb_write(sb, (char*)&enc.bytes, enc.size);
+	return sb_write(sb, (char*)&enc.bytes, enc.size);
 }
 
 String sb_build(String_Builder* sb){
@@ -433,6 +420,7 @@ String sb_get(String_Builder* sb){
 static
 isize sb_writer_stream_func(void* impl, IO_Mode mode, u8* buf, isize buflen){
 	String_Builder* sb = impl;
+	ensure(buflen >= 0, "invalid buffer len");
 
 	switch(mode){
 	case IO_Query:
@@ -441,9 +429,10 @@ isize sb_writer_stream_func(void* impl, IO_Mode mode, u8* buf, isize buflen){
 	case IO_Read:
 		return IO_Err_Unsupported;
 
-	case IO_Write:
-		sb_write(sb, (char const*)buf, buflen);
-		return (isize)buflen;
+	case IO_Write: {
+		sb_write(sb, (char const*)buf, (int)buflen);
+		return buflen;
+	}
 
 	case IO_Close:
 		return IO_Err_Unsupported;

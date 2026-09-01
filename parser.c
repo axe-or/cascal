@@ -599,3 +599,130 @@ Parser_Result parse_var_declaration(Parser* parser){
 	parser->ast.root = node;
 	return (Parser_Result){.node = node};
 }
+
+typedef struct {
+	IO_Writer writer;
+	isize written;
+	isize error;
+} Node_Format_Context;
+
+attribute_format(2, 3)
+static bool node_format_write(Node_Format_Context* context, char const* fmt, ...){
+	if(context->error < 0){
+		return false;
+	}
+
+	va_list args;
+	va_start(args, fmt);
+	isize result = fmt_writev(context->writer, fmt, args);
+	va_end(args);
+
+	if(result < 0){
+		context->error = result;
+		return false;
+	}
+	context->written += result;
+	return true;
+}
+
+static inline
+void write_quoted_string(Node_Format_Context* context, String value){
+	node_format_write(context, "\"");
+	isize chunk_start = 0;
+
+	for(isize i = 0; i < value.len && context->error == 0; i += 1){
+		char const* escape = NULL;
+		switch(value.v[i]){
+		case '\t': escape = "\\t"; break;
+		case '\r': escape = "\\r"; break;
+		case '\n': escape = "\\n"; break;
+		case '"':  escape = "\\\""; break;
+		case '\\': escape = "\\\\"; break;
+		}
+
+		if(escape == NULL){
+			continue;
+		}
+		if(i > chunk_start){
+			node_format_write(context, "%.*s", (int)(i - chunk_start), &value.v[chunk_start]);
+		}
+		node_format_write(context, "%s", escape);
+		chunk_start = i + 1;
+	}
+
+	if(context->error == 0 && chunk_start < value.len){
+		node_format_write(
+			context,
+			"%.*s",
+			(int)(value.len - chunk_start),
+			&value.v[chunk_start]
+		);
+	}
+	node_format_write(context, "\"");
+}
+
+static
+void node_format_ctx(Node_Format_Context* context, Node* node){
+	if(context->error != 0){
+		return;
+	}
+	if(node == NULL){
+		context->error = IO_Err_Other;
+		return;
+	}
+
+	switch(node->type){
+	case Node_Integer:
+		node_format_write(context, "%lld", (long long)node->value.integer);
+		break;
+	case Node_Real:
+		node_format_write(context, "%.17g", node->value.real);
+		break;
+	case Node_Boolean:
+		node_format_write(context, node->value.boolean ? "true" : "false");
+		break;
+	case Node_String:
+		write_quoted_string(context, node->value.str);
+		break;
+	case Node_Identifier:
+		node_format_write(context, "%.*s", strf(node->value.ident));
+		break;
+	case Node_Unary:
+		node_format_write(context, "(%.*s ", strf(token_type_name(node->value.unary.op)));
+		node_format_ctx(context, node->value.unary.operand);
+		node_format_write(context, ")");
+		break;
+	case Node_Binary:
+		node_format_write(context, "(%.*s ", strf(token_type_name(node->value.binary.op)));
+		node_format_ctx(context, node->value.binary.left);
+		node_format_write(context, " ");
+		node_format_ctx(context, node->value.binary.right);
+		node_format_write(context, ")");
+		break;
+	case Node_Call:
+		node_format_write(context, "(call ");
+		node_format_ctx(context, node->value.call.callable);
+		for(Node* arg = node->value.call.args.first; arg != NULL; arg = arg->next){
+			node_format_write(context, " ");
+			node_format_ctx(context, arg);
+		}
+		node_format_write(context, ")");
+		break;
+	case Node_Index:
+		node_format_write(context, "([] ");
+		node_format_ctx(context, node->value.index.object);
+		node_format_write(context, " ");
+		node_format_ctx(context, node->value.index.idx);
+		node_format_write(context, ")");
+		break;
+
+	default:
+		panic("invalid node type");
+	}
+}
+
+isize node_format(IO_Writer writer, Node* node){
+	Node_Format_Context context = {.writer = writer};
+	node_format_ctx(&context, node);
+	return context.error < 0 ? context.error : context.written;
+}

@@ -263,20 +263,13 @@ void sb_destroy(String_Builder* sb);
 void sb_clear(String_Builder* sb);
 
 // Append data to the builder.
-void sb_write(String_Builder* sb, char const* data, int n);
-
-// Write a printf-style formatted string to string builder
-int sb_write_vfmt(String_Builder* sb, char const* format, va_list args);
-
-// Write a printf-style formatted string to string builder
-attribute_format(2, 3)
-int sb_write_fmt(String_Builder* sb, char const* format, ...);
+isize sb_write(String_Builder* sb, char const* data, isize n);
 
 // Write single byte to buffer
-void sb_write_byte(String_Builder* sb, u8 c);
+isize sb_write_byte(String_Builder* sb, u8 c);
 
 // Write an UTF-8 encoded rune to buffer
-void sb_write_rune(String_Builder* sb, rune r);
+isize sb_write_rune(String_Builder* sb, rune r);
 
 // Pop the string from the builder and reset it. The result is null terminated for C-string compatibility.
 String sb_build(String_Builder* sb);
