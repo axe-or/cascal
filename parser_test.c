@@ -8,9 +8,13 @@ typedef struct {
 	Parser parser;
 } Parser_Fixture;
 
-static Parser_Result parse_test_expression(String source, Parser_Fixture* fixture){
+static void parser_fixture_init(String source, Parser_Fixture* fixture){
 	fixture->arena = arena_from_buffer(fixture->memory, sizeof(fixture->memory));
 	fixture->parser = parser_make(source, &fixture->arena);
+}
+
+static Parser_Result parse_test_expression(String source, Parser_Fixture* fixture){
+	parser_fixture_init(source, fixture);
 	return parse_expression(&fixture->parser);
 }
 
@@ -24,6 +28,18 @@ static bool is_unary(Node const* node, Token_Type op){
 
 static bool is_integer(Node const* node, i64 value){
 	return node != NULL && node->type == Node_Integer && node->value.integer == value;
+}
+
+static bool is_identifier(Node const* node, String ident){
+	return node != NULL
+		&& node->type == Node_Identifier
+		&& str_equal(node->value.ident, ident);
+}
+
+static bool is_named_parser_type(Parser_Type const* type, String name){
+	return type != NULL
+		&& type->kind == ParserType_Named
+		&& str_equal(type->value.name, name);
 }
 
 void parser_tests(Test* t){
@@ -138,5 +154,112 @@ void parser_tests(Test* t){
 		t_pred(t, result.node == NULL);
 		t_pred(t, result.error.typ == Err_UnexpectedToken);
 		t_pred(t, result.error.got.token_type == Tk_EndOfFile);
+	}
+
+	{
+		Parser_Fixture fixture;
+		parser_fixture_init(strlit("[32][]^Item"), &fixture);
+		Parser_Type_Result result = parse_type(&fixture.parser);
+		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.type != NULL && result.type->kind == ParserType_Array);
+		if(result.type != NULL && result.type->kind == ParserType_Array){
+			t_pred(t, result.type->value.length == 32);
+			Parser_Type* slice = result.type->value.element;
+			t_pred(t, slice != NULL && slice->kind == ParserType_Slice);
+			if(slice != NULL && slice->kind == ParserType_Slice){
+				Parser_Type* pointer = slice->value.element;
+				t_pred(t, pointer != NULL && pointer->kind == ParserType_Pointer);
+				if(pointer != NULL && pointer->kind == ParserType_Pointer){
+					t_pred(t, is_named_parser_type(pointer->value.element, strlit("Item")));
+				}
+			}
+		}
+		t_pred(t, scan_peek_token(&fixture.parser.scanner).token.type == Tk_EndOfFile);
+	}
+
+	{
+		Parser_Fixture fixture;
+		parser_fixture_init(strlit("[]"), &fixture);
+		Parser_Type_Result result = parse_type(&fixture.parser);
+		t_pred(t, result.type == NULL);
+		t_pred(t, result.error.typ == Err_UnexpectedToken);
+		t_pred(t, result.error.got.token_type == Tk_EndOfFile);
+	}
+
+	{
+		Parser_Fixture fixture;
+		parser_fixture_init(strlit("first, second, third:"), &fixture);
+		Parser_Result result = parse_identifier_list(&fixture.parser);
+		Node_List list = {.first = result.node, .last = result.last_node};
+		t_pred(t, !has_error(result));
+		t_pred(t, node_list_cardinality(list) == 3);
+		t_pred(t, is_identifier(list.first, strlit("first")));
+		t_pred(t, is_identifier(list.last, strlit("third")));
+		t_pred(t, scan_peek_token(&fixture.parser.scanner).token.type == Tk_Colon);
+	}
+
+	{
+		Parser_Fixture fixture;
+		parser_fixture_init(strlit("1 + 2, value, false"), &fixture);
+		Parser_Result result = parse_expression_list(&fixture.parser, Tk_EndOfFile);
+		Node_List list = {.first = result.node, .last = result.last_node};
+		t_pred(t, !has_error(result));
+		t_pred(t, node_list_cardinality(list) == 3);
+		t_pred(t, is_binary(list.first, Tk_Plus));
+		t_pred(t, is_identifier(list.first->next, strlit("value")));
+		t_pred(t, list.last != NULL
+			&& list.last->type == Node_Boolean
+			&& !list.last->value.boolean);
+	}
+
+	{
+		Parser_Fixture fixture;
+		parser_fixture_init(strlit("1 2"), &fixture);
+		Parser_Result result = parse_expression_list(&fixture.parser, Tk_EndOfFile);
+		t_pred(t, has_error(result));
+		t_pred(t, result.error.typ == Err_UnexpectedToken);
+		t_pred(t, result.error.expected.token_type == Tk_Comma);
+		t_pred(t, result.error.got.token_type == Tk_Integer);
+	}
+
+	{
+		Parser_Fixture fixture;
+		parser_fixture_init(strlit("var first, second: [4]^Int = 1 + 2, other;"), &fixture);
+		Parser_Result result = parse_var_declaration(&fixture.parser);
+		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.node != NULL && result.node->type == Node_VarDefinition);
+		t_pred(t, fixture.parser.ast.root == result.node);
+		if(result.node != NULL && result.node->type == Node_VarDefinition){
+			Var_Definition* definition = &result.node->value.var_definition;
+			t_pred(t, node_list_cardinality(definition->idents) == 2);
+			t_pred(t, is_identifier(definition->idents.first, strlit("first")));
+			t_pred(t, is_identifier(definition->idents.last, strlit("second")));
+			t_pred(t, definition->type != NULL
+				&& definition->type->kind == ParserType_Array
+				&& definition->type->value.length == 4);
+			if(definition->type != NULL && definition->type->kind == ParserType_Array){
+				Parser_Type* pointer = definition->type->value.element;
+				t_pred(t, pointer != NULL && pointer->kind == ParserType_Pointer);
+				if(pointer != NULL && pointer->kind == ParserType_Pointer){
+					t_pred(t, is_named_parser_type(pointer->value.element, strlit("Int")));
+				}
+			}
+			t_pred(t, node_list_cardinality(definition->values) == 2);
+			t_pred(t, is_binary(definition->values.first, Tk_Plus));
+			t_pred(t, is_identifier(definition->values.last, strlit("other")));
+			t_pred(t, definition->idents.first->parent == result.node);
+			t_pred(t, definition->values.first->parent == result.node);
+		}
+		t_pred(t, scan_peek_token(&fixture.parser.scanner).token.type == Tk_Semicolon);
+	}
+
+	{
+		Parser_Fixture fixture;
+		parser_fixture_init(strlit("var first, second: Int = 1"), &fixture);
+		Parser_Result result = parse_var_declaration(&fixture.parser);
+		t_pred(t, result.node == NULL);
+		t_pred(t, result.error.typ == Err_MismatchedListCardinality);
+		t_pred(t, result.error.expected.cardinality == 2);
+		t_pred(t, result.error.got.cardinality == 1);
 	}
 }

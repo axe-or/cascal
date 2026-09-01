@@ -114,6 +114,53 @@ Node* ast_make_string(AST* ast, String escaped){
 }
 
 static inline
+void node_list_push(Node_List* list, Node* node){
+	ensure(node != NULL, "cannot add a null node to a node list");
+
+	node->next = NULL;
+	if(list->last != NULL){
+		list->last->next = node;
+	} else {
+		list->first = node;
+	}
+	list->last = node;
+}
+
+static inline
+Node* ast_make_var_definition(
+	AST* ast,
+	Node_List idents,
+	Parser_Type* type,
+	Node_List values
+){
+	Node* node = ast_make_node(ast);
+	*node = (Node){
+		.type = Node_VarDefinition,
+		.value.var_definition = {
+			.idents = idents,
+			.type = type,
+			.values = values,
+		},
+	};
+
+	for(Node* ident = idents.first; ident != NULL; ident = ident->next){
+		ident->parent = node;
+	}
+	for(Node* value = values.first; value != NULL; value = value->next){
+		value->parent = node;
+	}
+	return node;
+}
+
+static inline
+Parser_Type* parser_type_make(Parser* parser, Parser_Type_Kind kind){
+	Parser_Type* type = arena_make(parser->ast.arena, Parser_Type, 1);
+	ensure(type != NULL, "AST arena exhausted");
+	type->kind = kind;
+	return type;
+}
+
+static inline
 void call_node_push_arg(Node* node, Node* arg){
     ensure(node && node->type == Node_Call, "not a call node");
 
@@ -209,9 +256,13 @@ bool prefix_binding_power(Token_Type op, int* right_bp){
 static inline
 bool infix_binding_power(Token_Type op, i32* lbp, i32* rbp){
 	switch(op){
+    case Tk_ParenOpen:
+    case Tk_SquareOpen:
+        *lbp = 100; *rbp = 101;
+        return true;
+
 	case Tk_Dot:
-		*lbp = 90;
-		*rbp = 91;
+		*lbp = 90; *rbp = 91;
 		return true;
 
 	case Tk_Star:
@@ -220,16 +271,14 @@ bool infix_binding_power(Token_Type op, i32* lbp, i32* rbp){
 	case Tk_And:
 	case Tk_ShiftLeft:
 	case Tk_ShiftRight:
-		*lbp = 70;
-		*rbp = 71;
+		*lbp = 70; *rbp = 71;
 		return true;
 
 	case Tk_Plus:
 	case Tk_Minus:
 	case Tk_Or:
 	case Tk_Caret:
-		*lbp = 60;
-		*rbp = 61;
+		*lbp = 60; *rbp = 61;
 		return true;
 
 	case Tk_Eq:
@@ -238,18 +287,15 @@ bool infix_binding_power(Token_Type op, i32* lbp, i32* rbp){
 	case Tk_GtEq:
 	case Tk_Lt:
 	case Tk_LtEq:
-		*lbp = 50;
-		*rbp = 51;
+		*lbp = 50; *rbp = 51;
 		return true;
 
 	case Tk_LogicAnd:
-		*lbp = 40;
-		*rbp = 41;
+		*lbp = 40; *rbp = 41;
 		return true;
 
 	case Tk_LogicOr:
-		*lbp = 30;
-		*rbp = 31;
+		*lbp = 30; *rbp = 31;
 		return true;
 
 	default:
@@ -336,47 +382,9 @@ Node* parse_expression_bp(Parser* parser, int minimum_bp){
 	return left;
 }
 
-
 attribute_force_inline_func
-bool has_error(Parser_Result r){
-    return r.error.typ != 0;
-}
-
-static inline
-Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim){
-    Parser_Result res = {0};
-
-    Node* first = NULL;
-    Node* last = NULL;
-
-    for(;;){
-        Parser_Result exp = parse_expression(parser);
-        if(has_error(exp)){ return exp; }
-
-        if(last){
-            last->next = exp.node;
-        } else {
-            first = exp.node;
-        }
-        last = exp.node;
-
-        Token current = parser_peek(parser);
-        if(current.type == Tk_Comma){
-            parser_next(parser); // Eat `,`
-            Token lookahead = parser_peek(parser);
-            if(lookahead.type == end_delim || lookahead.type == Tk_EndOfFile){
-                break;
-            } else {
-                continue;
-            }
-        }
-        else if(current.type == end_delim || current.type == Tk_EndOfFile){
-            break;
-        }
-    }
-
-    res.node = first;
-    return res;
+bool has_error(Parser_Result result){
+	return result.error.typ != Err_None;
 }
 
 Parser parser_make(String source, Arena* arena){
@@ -400,4 +408,194 @@ Parser_Result parse_expression(Parser* parser){
 		.node = node,
 		.error = parser->error,
 	};
+}
+
+static inline
+Parser_Type* parse_type_inner(Parser* parser){
+	Token token = parser_next(parser);
+	if(parser->error.typ != Err_None){
+		return NULL;
+	}
+
+	switch(token.type){
+	case Tk_Identifier: {
+		Parser_Type* type = parser_type_make(parser, ParserType_Named);
+		type->value.name = parser_token_string(parser, token);
+		return type;
+	}
+	case Tk_Caret: {
+		Parser_Type* element = parse_type_inner(parser);
+		if(element == NULL){
+			return NULL;
+		}
+
+		Parser_Type* type = parser_type_make(parser, ParserType_Pointer);
+		type->value.element = element;
+		return type;
+	}
+	case Tk_SquareOpen: {
+		if(parser_take_if(parser, Tk_SquareClose)){
+			Parser_Type* element = parse_type_inner(parser);
+			if(element == NULL){
+				return NULL;
+			}
+
+			Parser_Type* type = parser_type_make(parser, ParserType_Slice);
+			type->value.element = element;
+			return type;
+		}
+
+		Token length = parser_next(parser);
+		if(parser->error.typ != Err_None){
+			return NULL;
+		}
+		if(length.type != Tk_Integer){
+			parser_unexpected(parser, length, Tk_Integer);
+			return NULL;
+		}
+		if(!parser_expect(parser, Tk_SquareClose)){
+			return NULL;
+		}
+
+		Parser_Type* element = parse_type_inner(parser);
+		if(element == NULL){
+			return NULL;
+		}
+
+		Parser_Type* type = parser_type_make(parser, ParserType_Array);
+		type->value.element = element;
+		type->value.length = length.value_int;
+		return type;
+	}
+	default:
+		parser_unexpected(parser, token, Tk_Identifier);
+		return NULL;
+	}
+}
+
+Parser_Type_Result parse_type(Parser* parser){
+	if(parser->error.typ != Err_None){
+		return (Parser_Type_Result){.error = parser->error};
+	}
+
+	Parser_Type* type = parse_type_inner(parser);
+	return (Parser_Type_Result){
+		.type = type,
+		.error = parser->error,
+	};
+}
+
+Parser_Result parse_identifier_list(Parser* parser){
+	Node_List list = {0};
+
+	for(;;){
+		Token token = parser_next(parser);
+		if(parser->error.typ != Err_None){
+			break;
+		}
+		if(token.type != Tk_Identifier){
+			parser_unexpected(parser, token, Tk_Identifier);
+			break;
+		}
+
+		Node* ident = ast_make_identifier(&parser->ast, parser_token_string(parser, token));
+		node_list_push(&list, ident);
+		if(!parser_take_if(parser, Tk_Comma)){
+			break;
+		}
+	}
+
+	return (Parser_Result){
+		.node = list.first,
+		.last_node = list.last,
+		.error = parser->error,
+	};
+}
+
+Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim){
+	Node_List list = {0};
+
+	for(;;){
+		Parser_Result expression = parse_expression(parser);
+		if(has_error(expression)){
+			return expression;
+		}
+		node_list_push(&list, expression.node);
+
+		Token current = parser_peek(parser);
+		if(parser->error.typ != Err_None){
+			break;
+		}
+		if(current.type == end_delim || current.type == Tk_EndOfFile){
+			break;
+		}
+		if(current.type != Tk_Comma){
+			parser_unexpected(parser, current, Tk_Comma);
+			break;
+		}
+
+		parser_next(parser);
+		Token lookahead = parser_peek(parser);
+		if(parser->error.typ != Err_None){
+			break;
+		}
+		if(lookahead.type == end_delim || lookahead.type == Tk_EndOfFile){
+			parser_unexpected(parser, lookahead, Tk_Unknown);
+			break;
+		}
+	}
+
+	return (Parser_Result){
+		.node = list.first,
+		.last_node = list.last,
+		.error = parser->error,
+	};
+}
+
+Parser_Result parse_var_declaration(Parser* parser){
+	if(parser->error.typ != Err_None){
+		return (Parser_Result){.error = parser->error};
+	}
+	if(!parser_expect(parser, Tk_Var)){
+		return (Parser_Result){.error = parser->error};
+	}
+
+	Parser_Result idents = parse_identifier_list(parser);
+	if(has_error(idents) || !parser_expect(parser, Tk_Colon)){
+		return (Parser_Result){.error = parser->error};
+	}
+
+	Parser_Type_Result type = parse_type(parser);
+	if(type.error.typ != Err_None || !parser_expect(parser, Tk_Assign)){
+		return (Parser_Result){.error = parser->error};
+	}
+
+	Parser_Result values = parse_expression_list(parser, Tk_Semicolon);
+	if(has_error(values)){
+		return (Parser_Result){.error = parser->error};
+	}
+
+	Node_List ident_list = {.first = idents.node, .last = idents.last_node};
+	Node_List value_list = {.first = values.node, .last = values.last_node};
+	i32 ident_count = node_list_cardinality(ident_list);
+	i32 value_count = node_list_cardinality(value_list);
+	if(ident_count != value_count){
+		Token current = parser_peek(parser);
+		parser->error = (Error){
+			.offset = current.start,
+			.typ = Err_MismatchedListCardinality,
+			.expected.cardinality = ident_count,
+			.got.cardinality = value_count,
+		};
+		return (Parser_Result){.error = parser->error};
+	}
+
+	Node* node = ast_make_var_definition(
+		&parser->ast,
+		ident_list,
+		type.type,
+		value_list
+	);
+	parser->ast.root = node;
+	return (Parser_Result){.node = node};
 }

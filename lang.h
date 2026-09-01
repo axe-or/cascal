@@ -97,6 +97,7 @@ enum Error_Type {
 
 	// Parser errors
 	Err_UnexpectedToken,
+	Err_MismatchedListCardinality,
 
 	Error_Type__COUNT,
 };
@@ -108,11 +109,13 @@ typedef struct {
 	union {
 		rune character;
 		Token_Type token_type;
+		i32 cardinality;
 	} expected;
 
 	union {
 		rune character;
 		Token_Type token_type;
+		i32 cardinality;
 	} got;
 } Error;
 
@@ -159,6 +162,31 @@ _Static_assert(NODE_POOL_SIZE < (1ull << NODE_AST_POOL_OFFSET_BITS), "node pool 
 _Static_assert((NODE_POOL_SIZE & (NODE_POOL_SIZE - 1)) == 0, "node pool size must be a power of 2");
 
 typedef struct Node Node;
+typedef struct Parser_Type Parser_Type;
+
+typedef enum {
+	ParserType_Unknown = 0,
+
+	ParserType_Named,
+	ParserType_Slice,
+	ParserType_Array,
+	ParserType_Pointer,
+
+	ParserType__COUNT,
+} Parser_Type_Kind;
+
+struct Parser_Type {
+	union {
+		String name;
+
+		struct {
+			Parser_Type* element;
+			u32 length;
+		};
+	} value;
+
+	Parser_Type_Kind kind;
+};
 
 typedef struct {
     Node* left;
@@ -183,7 +211,8 @@ typedef struct {
 
 typedef struct {
 	Node_List idents; // All must be identifiers
-	Node_List values; // NOTE: Optional
+	Parser_Type* type;
+	Node_List values;
 } Var_Definition;
 
 typedef struct {
@@ -203,6 +232,7 @@ typedef enum {
 	Node_Binary,
 	Node_Index,
 	Node_Call,
+	Node_VarDefinition,
 
 	Node_Type__COUNT,
 } Node_Type;
@@ -221,6 +251,7 @@ struct Node {
         Unary unary;
         Binary binary;
 		Call call;
+		Var_Definition var_definition;
     } value;
 
 	Node_Type type;
@@ -248,9 +279,23 @@ typedef struct {
 
 typedef struct {
 	Node* node;
+	Node* last_node;
 	Error error;
 } Parser_Result;
+
+typedef struct {
+	Parser_Type* type;
+	Error error;
+} Parser_Type_Result;
 
 Parser parser_make(String source, Arena* arena);
 
 Parser_Result parse_expression(Parser* parser);
+
+Parser_Type_Result parse_type(Parser* parser);
+
+Parser_Result parse_identifier_list(Parser* parser);
+
+Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim);
+
+Parser_Result parse_var_declaration(Parser* parser);
