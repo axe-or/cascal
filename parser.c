@@ -35,8 +35,11 @@ Node* ast_make_binary(AST* ast, Token_Type op, Node* left, Node* right){
 		},
 	};
 
+    left->next = right;
+
 	left->parent = node;
 	right->parent = node;
+
 	return node;
 }
 
@@ -108,6 +111,23 @@ Node* ast_make_string(AST* ast, String escaped){
 		.value.str = value,
 	};
 	return node;
+}
+
+static inline
+void call_node_push_arg(Node* node, Node* arg){
+    ensure(node && node->type == Node_Call, "not a call node");
+
+    Call* call = &node->value.call;
+
+    if(!call->first){
+        call->first = arg;
+        call->last = arg;
+    }
+    else {
+      call->last->next = arg;
+      call->last = arg;
+    }
+    arg->parent = node;
 }
 
 static inline
@@ -314,6 +334,43 @@ Node* parse_expression_bp(Parser* parser, int minimum_bp){
 	}
 
 	return left;
+}
+
+
+attribute_force_inline_func
+bool has_error(Parser_Result r){
+    return r.error.typ != 0;
+}
+
+static inline
+Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim){
+    Parser_Result res = {0};
+
+    for(;;){
+        Parser_Result exp = parse_expression(parser);
+        if(has_error(exp)){ return exp; }
+
+        if(res.node){
+            res.node->next = exp.node;
+        }
+        res.node = exp.node;
+
+        Token current = parser_peek(parser);
+        if(current.type == Tk_Comma){
+            parser_next(parser); // Eat `,`
+            Token lookahead = parser_peek(parser);
+            if(lookahead.type == end_delim || lookahead.type == Tk_EndOfFile){
+                break;
+            } else {
+                continue;
+            }
+        }
+        else if(current.type == end_delim || current.type == Tk_EndOfFile){
+            break;
+        }
+    }
+
+    return res;
 }
 
 Parser parser_make(String source, Arena* arena){

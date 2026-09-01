@@ -171,6 +171,25 @@ typedef struct {
     Token_Type op;
 } Unary;
 
+typedef struct {
+	// NOTE: Despite similarity, assignment is NOT a binary expression.
+	Node* left;
+	Node* right;
+} Assignment;
+
+typedef struct {
+	Node* value;
+	Node* next;
+} Call_Arg;
+
+typedef struct {
+	Node* callable;
+
+	// Args
+	Node* first;
+	Node* last;
+} Call;
+
 typedef enum {
 	Node_Unknown = 0,
 
@@ -181,21 +200,26 @@ typedef enum {
 	Node_Identifier,
 	Node_Unary,
 	Node_Binary,
+	Node_Index,
+	Node_Call,
 
 	Node_Type__COUNT,
 } Node_Type;
 
 struct Node {
 	Node* parent;
+	Node* next;
 
     union {
-		String ident;
-		String str;
+		bool boolean;
 		i64 integer;
 		f64 real;
-		bool boolean;
+		String str;
+		String ident;
+
         Unary unary;
         Binary binary;
+		Call call;
     } value;
 
 	Node_Type type;
