@@ -726,3 +726,7 @@ isize node_format(IO_Writer writer, Node* node){
 	node_format_ctx(&context, node);
 	return context.error < 0 ? context.error : context.written;
 }
+
+Error parse(String source, AST* ast, Arena* arena){
+	panic("todo!");
+}

@@ -199,6 +199,8 @@ typedef struct {
 	usize peak_usage;
 } Arena;
 
+#define arena_declare_static(name, size) static u8 name ##_memory[(size)]; Arena name = {.data = &name ##_memory[0], .capacity = (size)}
+
 // Allocate `count` instances of `type` in arena
 #define arena_make(arena, type, count) \
 	(type*)arena_alloc((arena), sizeof(type) * (count), alignof(type))

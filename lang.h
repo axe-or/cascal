@@ -297,14 +297,4 @@ typedef struct {
 	Error error;
 } Parser_Type_Result;
 
-Parser parser_make(String source, Arena* arena);
-
-Parser_Result parse_expression(Parser* parser);
-
-Parser_Type_Result parse_type(Parser* parser);
-
-Parser_Result parse_identifier_list(Parser* parser);
-
-Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim);
-
-Parser_Result parse_var_declaration(Parser* parser);
+Error parse(String source, AST* ast, Arena* arena);

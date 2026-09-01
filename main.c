@@ -17,9 +17,14 @@ String read_file_whole(char const* path){
 	return (String){ .v = (char const*)data, .len = size };
 }
 
+arena_declare_static(arena, 512 * 1024);
+
 int main(){
-	String source = read_file_whole("main.c");
+	String source = read_file_whole("source.txt");
 	printf("%.*s\n", strf(source));
+
+	AST ast = {0};
+	parse(source, &ast, &arena);
 }
 
 #include "base.c"

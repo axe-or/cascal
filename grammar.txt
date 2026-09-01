@@ -1,3 +1,6 @@
+// NOTE: TrailingComma is a special production that means that an extra comma may appear before next token in the production
+//       e.g. '(' TrailingComma ')'  matches '()' and '(,)' but not '(,,)'
+
 SliceType := '[' ']' Type
 
 ArrayType := '[' INTEGER ']' Type
@@ -10,6 +13,10 @@ Type :=
     | ArrayType
     | PointerType
 
+TypeList :=
+    | Type
+    | Type ',' TypeList
+
 IdentList :=
     | IDENTIFIER ',' IdentList
     | IDENTIFIER
@@ -18,16 +25,39 @@ ExpressionList :=
     | Expr ',' IdentList
     | Expr
 
-// NOTE: Not enforced by grammar, but the ident list and expression list must be
-// of the same cardinality
+// NOTE: Not enforced by grammar, but both lists must have the same cardinality
 VarDecl := 'var' IdentList ':' Type '=' ExpressionList
 
 Block := '{' Statement* '}'
 
+Return := 'return' ExpressionList?
+
+Break := 'break' IDENTIFIER?
+
+Continue := 'break' IDENTIFIER?
+
 Statement :=
     | VarDecl ';'
     | Expression ';'
+    | Assignment ';'
+    | Return ';'
+    | Break ';'
+    | Continue ';'
+    | If
+    | While
+    | ProcDecl
 
 If := 'if' Expression Block ('else' (If | Block))?
 
 While := 'while' Expression Block
+
+// NOTE: Not enforced by grammar, but both lists must have the same cardinality
+Assignment := ExpressionList '=' ExpressionList
+
+Fields := IdentList ':' Type
+
+FieldList :=
+    | Fields
+    | Fields ',' FieldList
+
+ProcDecl := 'proc' '(' FieldList? TrailingComma ')' ('->' (Type | '(' TypeList ')'))? Block
