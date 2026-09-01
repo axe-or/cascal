@@ -1,0 +1,33 @@
+SliceType := '[' ']' Type
+
+ArrayType := '[' INTEGER ']' Type
+
+PointerType := '^' Type
+
+Type :=
+    | IDENTIFIER
+    | SliceType
+    | ArrayType
+    | PointerType
+
+IdentList :=
+    | IDENTIFIER ',' IdentList
+    | IDENTIFIER
+
+ExpressionList :=
+    | Expr ',' IdentList
+    | Expr
+
+// NOTE: Not enforced by grammar, but the ident list and expression list must be
+// of the same cardinality
+VarDecl := 'var' IdentList ':' Type '=' ExpressionList
+
+Block := '{' Statement* '}'
+
+Statement :=
+    | VarDecl ';'
+    | Expression ';'
+
+If := 'if' Expression Block ('else' (If | Block))?
+
+While := 'while' Expression Block

@@ -429,3 +429,64 @@ String sb_get(String_Builder* sb){
 
 	return res;
 }
+
+////~ Formatting
+
+typedef struct {
+	IO_Writer writer;
+	char* scratch;
+	isize written;
+	isize error;
+} Fmt_Write_Context;
+
+static inline
+char* fmt_write_callback(char const* buf, void* user, int len){
+	Fmt_Write_Context* ctx = user;
+	isize offset = 0;
+
+	while(offset < len){
+		isize remaining = len - offset;
+		isize n = io_write(
+			ctx->writer.stream,
+			(u8*)&buf[offset],
+			remaining
+		);
+		if(n < 0){
+			ctx->error = n;
+			return NULL;
+		}
+		if(n == 0 || n > remaining){
+			ctx->error = IO_Err_Other;
+			return NULL;
+		}
+
+		offset += n;
+		ctx->written += n;
+	}
+
+	return ctx->scratch;
+}
+
+isize fmt_writev(IO_Writer writer, char const* fmt, va_list args){
+	if(writer.stream.fn == NULL){
+		return IO_Err_Closed;
+	}
+
+	char scratch[STB_SPRINTF_MIN+ 16];
+	Fmt_Write_Context context = {
+		.writer = writer,
+		.scratch = scratch,
+	};
+
+	stbsp_vsprintfcb(fmt_write_callback, &context, scratch, fmt, args);
+	return context.error < 0 ? context.error : context.written;
+}
+
+attribute_format(2, 3)
+isize fmt_write(IO_Writer writer, char const* fmt, ...){
+	va_list args;
+	va_start(args, fmt);
+	isize result = fmt_writev(writer, fmt, args);
+	va_end(args);
+	return result;
+}

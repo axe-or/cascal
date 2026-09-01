@@ -304,8 +304,9 @@ void mem_zero(void* ptr, usize n){
 
 typedef enum {
 	IO_Query = 0,
-	IO_Read = 1 << 0,
+	IO_Read  = 1 << 0,
 	IO_Write = 1 << 1,
+	IO_Close = 1 << 2,
 } IO_Mode;
 
 typedef enum {
@@ -319,8 +320,10 @@ typedef enum {
 	IO_Err_Other = -255,
 } IO_Error;
 
+// Perform an IO operation, returns < 0 on failure, check IO_Error for details.
 typedef isize (*IO_Stream_Func)(void* impl, IO_Mode mode, u8* buf, usize buflen);
 
+// General reader/writer interface abstraction
 typedef struct {
 	void* impl;
 	IO_Stream_Func fn;
@@ -346,3 +349,10 @@ typedef struct { IO_Stream stream; } IO_Writer;
 
 // Read-only type guard
 typedef struct { IO_Stream stream; } IO_Reader;
+
+////~ Formatting
+
+attribute_format(2, 3)
+isize fmt_write(IO_Writer w, char const* fmt, ...);
+
+isize fmt_writev(IO_Writer w, char const* fmt, va_list args);
