@@ -172,22 +172,23 @@ typedef struct {
 } Unary;
 
 typedef struct {
-	// NOTE: Despite similarity, assignment is NOT a binary expression.
-	Node* left;
-	Node* right;
+	Node* first;
+	Node* last;
+} Node_List;
+
+typedef struct {
+	Node_List left;
+	Node_List right;
 } Assignment;
 
 typedef struct {
-	Node* value;
-	Node* next;
-} Call_Arg;
+	Node_List idents; // All must be identifiers
+	Node_List values; // NOTE: Optional
+} Var_Definition;
 
 typedef struct {
 	Node* callable;
-
-	// Args
-	Node* first;
-	Node* last;
+	Node_List args;
 } Call;
 
 typedef enum {
@@ -224,6 +225,15 @@ struct Node {
 
 	Node_Type type;
 };
+
+static inline
+i32 node_list_cardinality(Node_List l){
+	i32 n = 0;
+	for(Node* cur = l.first; cur != NULL; cur = cur->next){
+		n += 1;
+	}
+	return n;
+}
 
 typedef struct {
 	Node* root;

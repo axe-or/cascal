@@ -117,15 +117,15 @@ static inline
 void call_node_push_arg(Node* node, Node* arg){
     ensure(node && node->type == Node_Call, "not a call node");
 
-    Call* call = &node->value.call;
+    Node_List* args = &node->value.call.args;
 
-    if(!call->first){
-        call->first = arg;
-        call->last = arg;
+    if(!args->first){
+        args->first = arg;
+        args->last = arg;
     }
     else {
-      call->last->next = arg;
-      call->last = arg;
+      args->last->next = arg;
+      args->last = arg;
     }
     arg->parent = node;
 }
