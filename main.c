@@ -24,3 +24,4 @@ int main(){
 
 #include "base.c"
 #include "scanner.c"
+#include "parser.c"

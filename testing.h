@@ -2,11 +2,11 @@
 
 extern int printf(char const* fmt, ...);
 
-struct Test {
+typedef struct Test {
     char const* name;
     int total;
     int fails;
-};
+} Test;
 
 static inline
 bool test_ex(struct Test* t, bool predicate, char const* msg, char const* file, int line){
@@ -28,6 +28,10 @@ static inline
 bool test_run(TestFunc* f){
     Test t = {0};
     f(&t);
-    printf("%s %s: ok in %d/%d\n", t.fails ? "FAIL" : "PASS", t.name ? "<unnamed>" : t.name, t.total - t.fails, t.total);
+    printf("%s %s: %d/%d passed\n",
+        t.fails ? "FAIL" : "PASS",
+        t.name ? t.name : "<unnamed>",
+        t.total - t.fails,
+        t.total);
     return t.fails == 0;
 }

@@ -176,6 +176,7 @@ typedef enum {
 
 	Node_Integer,
 	Node_Real,
+	Node_Boolean,
 	Node_String,
 	Node_Identifier,
 	Node_Unary,
@@ -188,12 +189,13 @@ struct Node {
 	Node* parent;
 
     union {
-        Binary binary;
-        Unary unary;
 		String ident;
 		String str;
 		i64 integer;
 		f64 real;
+		bool boolean;
+        Unary unary;
+        Binary binary;
     } value;
 
 	Node_Type type;
@@ -207,4 +209,14 @@ typedef struct {
 typedef struct {
     Scanner scanner;
 	AST ast;
+	Error error;
 } Parser;
+
+typedef struct {
+	Node* node;
+	Error error;
+} Parser_Result;
+
+Parser parser_make(String source, Arena* arena);
+
+Parser_Result parse_expression(Parser* parser);
