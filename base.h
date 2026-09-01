@@ -299,3 +299,50 @@ attribute_force_inline_func
 void mem_zero(void* ptr, usize n){
 	memset(ptr, 0, n);
 }
+
+////~ IO interface
+
+typedef enum {
+	IO_Query = 0,
+	IO_Read = 1 << 0,
+	IO_Write = 1 << 1,
+} IO_Mode;
+
+typedef enum {
+	IO_Err_None = 0,
+
+	IO_Err_EOF = -1,
+	IO_Err_Closed = -2,
+	IO_Err_TooBig = -3,
+	IO_Err_Unsupported = -4,
+
+	IO_Err_Other = -255,
+} IO_Error;
+
+typedef isize (*IO_Stream_Func)(void* impl, IO_Mode mode, u8* buf, usize buflen);
+
+typedef struct {
+	void* impl;
+	IO_Stream_Func fn;
+} IO_Stream;
+
+static inline
+i32 io_query(IO_Stream w, u8* buf, usize buflen){
+	return w.fn(w.impl, IO_Query, buf, buflen);
+}
+
+static inline
+isize io_read(IO_Stream r, u8* buf, usize buflen){
+	return r.fn(r.impl, IO_Read, buf, buflen);
+}
+
+static inline
+isize io_write(IO_Stream w, u8* buf, usize buflen){
+	return w.fn(w.impl, IO_Write, buf, buflen);
+}
+
+// Write-only type guard
+typedef struct { IO_Stream stream; } IO_Writer;
+
+// Read-only type guard
+typedef struct { IO_Stream stream; } IO_Reader;
