@@ -8,7 +8,7 @@ typedef struct {
 	usize write_limit;
 } Test_Memory_Writer;
 
-static isize test_memory_write(void* impl, IO_Mode mode, u8* buf, usize buflen){
+static isize test_memory_write(void* impl, IO_Mode mode, u8* buf, isize buflen){
 	Test_Memory_Writer* memory = impl;
 	if(mode != IO_Write){
 		return IO_Err_Unsupported;
@@ -89,6 +89,22 @@ void base_tests(Test* t){
 		isize result = fmt_write(test_memory_writer(&memory), "0123456789");
 		t_pred(t, result == IO_Err_TooBig);
 		t_pred(t, memory.len == 8);
+	}
+
+	{
+		u8 storage[2048];
+		Arena arena = arena_from_buffer(storage, sizeof(storage));
+		String_Builder builder = sb_make(16, &arena);
+		IO_Writer writer = sb_writer(&builder);
+
+		t_pred(t, io_query(writer.stream, NULL, 0) == IO_Write);
+		t_pred(t, io_write(writer.stream, (u8*)"hello", 5) == 5);
+		t_pred(t, fmt_write(writer, " %s %d", "world", 42) == 9);
+		t_pred(t, io_read(writer.stream, NULL, 0) == IO_Err_Unsupported);
+
+		String result = sb_get(&builder);
+		t_pred(t, str_equal(result, strlit("hello world 42")));
+		t_pred(t, io_write(writer.stream, (u8*)"!", 1) == IO_Err_Closed);
 	}
 
 	t_pred(t, fmt_write((IO_Writer){0}, "closed") == IO_Err_Closed);

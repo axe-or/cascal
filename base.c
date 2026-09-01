@@ -430,6 +430,38 @@ String sb_get(String_Builder* sb){
 	return res;
 }
 
+static
+isize sb_writer_stream_func(void* impl, IO_Mode mode, u8* buf, isize buflen){
+	String_Builder* sb = impl;
+
+	switch(mode){
+	case IO_Query:
+		return IO_Write;
+
+	case IO_Read:
+		return IO_Err_Unsupported;
+
+	case IO_Write:
+		sb_write(sb, (char const*)buf, buflen);
+		return (isize)buflen;
+
+	case IO_Close:
+		return IO_Err_Unsupported;
+	
+	default:
+		panic("unknown enum value");
+	}
+}
+
+IO_Writer sb_writer(String_Builder* sb){
+	return (IO_Writer){
+		.stream = {
+			.impl = sb,
+			.fn = sb_writer_stream_func,
+		},
+	};
+}
+
 ////~ Formatting
 
 typedef struct {

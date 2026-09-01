@@ -248,8 +248,8 @@ void arena_region_end(Arena_Reg r){
 // String builder that grows dynamically using an arena
 typedef struct {
 	char* buf;
-	int len;
-	int cap;
+	isize len;
+	isize cap;
 	Arena* arena;
 } String_Builder;
 
@@ -321,7 +321,7 @@ typedef enum {
 } IO_Error;
 
 // Perform an IO operation, returns < 0 on failure, check IO_Error for details.
-typedef isize (*IO_Stream_Func)(void* impl, IO_Mode mode, u8* buf, usize buflen);
+typedef isize (*IO_Stream_Func)(void* impl, IO_Mode mode, u8* buf, isize buflen);
 
 // General reader/writer interface abstraction
 typedef struct {
@@ -330,17 +330,17 @@ typedef struct {
 } IO_Stream;
 
 static inline
-i32 io_query(IO_Stream w, u8* buf, usize buflen){
+i32 io_query(IO_Stream w, u8* buf, isize buflen){
 	return w.fn(w.impl, IO_Query, buf, buflen);
 }
 
 static inline
-isize io_read(IO_Stream r, u8* buf, usize buflen){
+isize io_read(IO_Stream r, u8* buf, isize buflen){
 	return r.fn(r.impl, IO_Read, buf, buflen);
 }
 
 static inline
-isize io_write(IO_Stream w, u8* buf, usize buflen){
+isize io_write(IO_Stream w, u8* buf, isize buflen){
 	return w.fn(w.impl, IO_Write, buf, buflen);
 }
 
@@ -349,6 +349,9 @@ typedef struct { IO_Stream stream; } IO_Writer;
 
 // Read-only type guard
 typedef struct { IO_Stream stream; } IO_Reader;
+
+// Create a non-owning writer that appends to a string builder.
+IO_Writer sb_writer(String_Builder* sb);
 
 ////~ Formatting
 
