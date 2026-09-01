@@ -353,13 +353,12 @@ Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim){
         Parser_Result exp = parse_expression(parser);
         if(has_error(exp)){ return exp; }
 
-        if(!first){
-            first = exp.node;
-            last = exp.node;
-        } else {
+        if(last){
             last->next = exp.node;
-            last = exp.node;
+        } else {
+            first = exp.node;
         }
+        last = exp.node;
 
         Token current = parser_peek(parser);
         if(current.type == Tk_Comma){
