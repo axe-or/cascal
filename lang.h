@@ -348,3 +348,56 @@ typedef struct {
 } Parser_Result;
 
 Error parse(String source, AST* ast, Arena* arena);
+
+////~ Types
+
+enum Type_Kind {
+    Type_None = 0,
+    Type_Named,
+    Type_Distinct,
+    Type_Pointer,
+    Type_Array,
+    Type_Slice,
+
+    Type_Kind__COUNT,
+};
+
+typedef struct Type Type;
+
+typedef struct {
+    Type* inner;
+} Pointer_Type;
+
+typedef struct {
+    Type* inner;
+} Slice_Type;
+
+typedef struct {
+    Type* inner;
+    i32 size;
+} Array_Type;
+
+typedef struct {
+    String name;
+    Type* inner;
+} Distinct_Type;
+
+typedef struct {
+    Type** returns;
+    Type** args;
+
+    u16 returns_len;
+    u16 args_len;
+} Proc_Type;
+
+struct Type {
+    union {
+        String named;
+        Distinct_Type distinct;
+        Pointer_Type pointer;
+        Slice_Type slice;
+        Array_Type array;
+        Proc_Type proc;
+    };
+    u8 kind;
+};

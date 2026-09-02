@@ -39,3 +39,4 @@ int main(){
 #include "scanner.c"
 #include "parser.c"
 #include "errors.c"
+#include "types.c"
