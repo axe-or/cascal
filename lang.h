@@ -353,7 +353,7 @@ Error parse(String source, AST* ast, Arena* arena);
 
 enum Type_Kind {
     Type_None = 0,
-    Type_Named,
+    Type_Primitive,
     Type_Distinct,
     Type_Pointer,
     Type_Array,
@@ -413,3 +413,18 @@ struct Type {
     };
     u8 kind;
 };
+
+typedef struct { u32 v; } Type_ID;
+
+// Type interner
+typedef struct {
+	Type* types;
+	// map[type_hash]array(Type_ID)
+	isize len;
+	isize cap;
+} Type_Arena;
+
+bool type_eq(Type const* a, Type const* b);
+
+// Type_ID type_intern(Type_Arena* ta, Type* t);
+
