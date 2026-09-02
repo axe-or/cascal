@@ -24,10 +24,6 @@ void sm_arr_init(Small_Array* arr, Arena* arena){
     arr->arena = arena;
 }
 
-// static inline
-// bool sm_arr_push(Small_Array* arr, T val){
-// }
-
 static inline
 bool sm_arr_reserve(Small_Array* arr, i32 new_cap){
     if(new_cap < arr->cap){ return true; }
@@ -56,14 +52,17 @@ bool sm_arr_reserve(Small_Array* arr, i32 new_cap){
 }
 
 static inline
-bool sm_arr_push(Small_Array* arr, T val){
-    if(arr->cap > INLINE_COUNT){
+void sm_arr_push(Small_Array* arr, T val){
+    if(arr->len >= arr->cap){
+        ensure(sm_arr_reserve(arr, max(16, arr->cap * 2)), "failed to reserve");
     }
-    else {
-        if(arr->len >= arr->cap){
-            sm_arr_reserve(arr, arr->cap * 2);
-        }
-    }
+
+    arr->data[arr->len] = val;
+    arr->len += 1;
 }
+
+// static inline
+// void sm_arr_pop(Small_Array* arr){}
+
 
 #undef T
