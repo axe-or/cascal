@@ -390,9 +390,21 @@ typedef struct {
     u16 args_len;
 } Proc_Type;
 
+typedef enum {
+	Prim_None = 0,
+
+	Prim_Int,
+	Prim_Real,
+	Prim_Bool,
+	Prim_Rune,
+	Prim_String,
+
+	Prim__COUNT,
+} Primitive_Type;
+
 struct Type {
     union {
-        String named;
+        Primitive_Type primitive;
         Distinct_Type distinct;
         Pointer_Type pointer;
         Slice_Type slice;
