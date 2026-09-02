@@ -105,8 +105,9 @@ enum Error_Type {
 };
 
 typedef struct {
+	String file;
 	i32 offset;
-	u8 typ;
+	u8 type;
 
 	union {
 		rune character;
@@ -120,6 +121,8 @@ typedef struct {
 		i32 cardinality;
 	} got;
 } Error;
+
+String error_type_name(enum Error_Type t);
 
 // Token Type to string
 String token_type_name(Token_Type t);

@@ -376,7 +376,7 @@ String parser_token_string(Parser const* parser, Token token){
 
 static inline
 void parser_set_scanner_error(Parser* parser, Scanner_Result result){
-	if(parser->error.typ == Err_None && result.error.typ != Err_None){
+	if(parser->error.type == Err_None && result.error.type != Err_None){
 		parser->error = result.error;
 	}
 }
@@ -397,13 +397,13 @@ Token parser_next(Parser* parser){
 
 static inline
 void parser_unexpected(Parser* parser, Token got, Token_Type expected){
-	if(parser->error.typ != Err_None){
+	if(parser->error.type != Err_None){
 		return;
 	}
 
 	parser->error = (Error){
 		.offset = got.start,
-		.typ = Err_UnexpectedToken,
+		.type = Err_UnexpectedToken,
 		.expected.token_type = expected,
 		.got.token_type = got.type,
 	};
@@ -412,7 +412,7 @@ void parser_unexpected(Parser* parser, Token got, Token_Type expected){
 static inline
 bool parser_take_if(Parser* parser, Token_Type type){
 	Token token = parser_peek(parser);
-	if(parser->error.typ != Err_None || token.type != type){
+	if(parser->error.type != Err_None || token.type != type){
 		return false;
 	}
 	parser_next(parser);
@@ -455,6 +455,7 @@ bool infix_binding_power(Token_Type op, i32* lbp, i32* rbp){
 		return true;
 
 	case Tk_Star:
+	case Tk_Tilde:
 	case Tk_Slash:
 	case Tk_Modulo:
 	case Tk_And:
@@ -498,7 +499,7 @@ Node* parse_expression_bp(Parser* parser, int minimum_bp);
 static inline
 Node* parse_prefix(Parser* parser){
 	Token token = parser_next(parser);
-	if(parser->error.typ != Err_None){
+	if(parser->error.type != Err_None){
 		return NULL;
 	}
 
@@ -549,7 +550,7 @@ Node* parse_expression_bp(Parser* parser, int minimum_bp){
 
 	for(;;){
 		Token operator = parser_peek(parser);
-		if(parser->error.typ != Err_None){
+		if(parser->error.type != Err_None){
 			return NULL;
 		}
 
@@ -607,7 +608,7 @@ Node* parse_expression_bp(Parser* parser, int minimum_bp){
 
 attribute_force_inline_func
 bool has_error(Parser_Result result){
-	return result.error.typ != Err_None;
+	return result.error.type != Err_None;
 }
 
 Parser parser_make(String source, Arena* arena){
@@ -618,12 +619,12 @@ Parser parser_make(String source, Arena* arena){
 }
 
 Parser_Result parse_expression(Parser* parser){
-	if(parser->error.typ != Err_None){
+	if(parser->error.type != Err_None){
 		return (Parser_Result){.error = parser->error};
 	}
 
 	Node* node = parse_expression_bp(parser, 0);
-	if(parser->error.typ == Err_None){
+	if(parser->error.type == Err_None){
 		parser->ast.root = node;
 	}
 
@@ -636,7 +637,7 @@ Parser_Result parse_expression(Parser* parser){
 static inline
 Node* parse_type_inner(Parser* parser){
 	Token token = parser_next(parser);
-	if(parser->error.typ != Err_None){
+	if(parser->error.type != Err_None){
 		return NULL;
 	}
 
@@ -680,7 +681,7 @@ Node* parse_type_inner(Parser* parser){
 		}
 
 		Token length = parser_next(parser);
-		if(parser->error.typ != Err_None){
+		if(parser->error.type != Err_None){
 			return NULL;
 		}
 		if(length.type != Tk_Integer){
@@ -714,7 +715,7 @@ Node* parse_type_inner(Parser* parser){
 }
 
 Parser_Result parse_type(Parser* parser){
-	if(parser->error.typ != Err_None){
+	if(parser->error.type != Err_None){
 		return (Parser_Result){.error = parser->error};
 	}
 
@@ -731,7 +732,7 @@ Parser_Result parse_identifier_list(Parser* parser){
 
 	for(;;){
 		Token token = parser_next(parser);
-		if(parser->error.typ != Err_None){
+		if(parser->error.type != Err_None){
 			break;
 		}
 		if(token.type != Tk_Identifier){
@@ -764,7 +765,7 @@ Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim){
 		node_list_push(&list, expression.node);
 
 		Token current = parser_peek(parser);
-		if(parser->error.typ != Err_None){
+		if(parser->error.type != Err_None){
 			break;
 		}
 		if(current.type == end_delim || current.type == Tk_EndOfFile){
@@ -777,7 +778,7 @@ Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim){
 
 		parser_next(parser);
 		Token lookahead = parser_peek(parser);
-		if(parser->error.typ != Err_None){
+		if(parser->error.type != Err_None){
 			break;
 		}
 		if(lookahead.type == end_delim || lookahead.type == Tk_EndOfFile){
@@ -794,7 +795,7 @@ Parser_Result parse_expression_list(Parser* parser, Token_Type end_delim){
 }
 
 Parser_Result parse_var_declaration(Parser* parser){
-	if(parser->error.typ != Err_None){
+	if(parser->error.type != Err_None){
 		return (Parser_Result){.error = parser->error};
 	}
 	if(!parser_expect(parser, Tk_Var)){
@@ -824,7 +825,7 @@ Parser_Result parse_var_declaration(Parser* parser){
 		Token current = parser_peek(parser);
 		parser->error = (Error){
 			.offset = current.start,
-			.typ = Err_MismatchedListCardinality,
+			.type = Err_MismatchedListCardinality,
 			.expected.cardinality = ident_count,
 			.got.cardinality = value_count,
 		};
@@ -846,7 +847,7 @@ void parser_cardinality_error(Parser* parser, i32 expected, i32 got){
 	Token current = parser_peek(parser);
 	parser->error = (Error){
 		.offset = current.start,
-		.typ = Err_MismatchedListCardinality,
+		.type = Err_MismatchedListCardinality,
 		.expected.cardinality = expected,
 		.got.cardinality = got,
 	};
@@ -1067,7 +1068,7 @@ Parser_Result parse_while_statement(Parser* parser){
 static inline
 Parser_Result parse_statement(Parser* parser){
 	Token token = parser_peek(parser);
-	if(parser->error.typ != Err_None){
+	if(parser->error.type != Err_None){
 		return (Parser_Result){.error = parser->error};
 	}
 
@@ -1449,7 +1450,7 @@ Error parse(String source, AST* ast, Arena* arena){
 	Node_List definitions = {0};
 	while(parser_peek(&parser).type != Tk_EndOfFile){
 		Token token = parser_peek(&parser);
-		if(parser.error.typ != Err_None){
+		if(parser.error.type != Err_None){
 			break;
 		}
 		if(token.type != Tk_Proc){

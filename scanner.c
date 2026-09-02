@@ -90,7 +90,7 @@ Scanner_Result scan_string(Scanner* sc, i32 start){
 			Scanner_Result result = scanner_result(Tk_String, start, sc->current);
 			result.error = (Error){
 				.offset = offset,
-				.typ = Err_UnclosedString,
+				.type = Err_UnclosedString,
 			};
 			return result;
 		}
@@ -108,24 +108,24 @@ Scanner_Result scan_string(Scanner* sc, i32 start){
 				Scanner_Result result = scanner_result(Tk_String, start, sc->current);
 				result.error = (Error){
 					.offset = escape_offset,
-					.typ = Err_UnclosedString,
+					.type = Err_UnclosedString,
 				};
 				return result;
 			}
-			if(escape_sequence(escaped) == RUNE_ERROR && error.typ == Err_None){
+			if(escape_sequence(escaped) == RUNE_ERROR && error.type == Err_None){
 				error = (Error){
 					.offset = escape_offset,
-					.typ = Err_InvalidEscapeSequence,
+					.type = Err_InvalidEscapeSequence,
 					.got.character = escaped,
 				};
 			}
 			continue;
 		}
 
-		if((r == '\n' || r == '\r' || r == '\t') && error.typ == Err_None){
+		if((r == '\n' || r == '\r' || r == '\t') && error.type == Err_None){
 			error = (Error){
 				.offset = offset,
-				.typ = Err_InvalidStringChar,
+				.type = Err_InvalidStringChar,
 				.got.character = r,
 			};
 		}
@@ -164,7 +164,7 @@ Error scan_comment(Scanner* sc){
 
 	return (Error){
 		.offset = sc->current,
-		.typ = Err_UnclosedComment,
+		.type = Err_UnclosedComment,
 	};
 }
 
@@ -315,7 +315,7 @@ Scanner_Result scan_real(Scanner const* sc, i32 start){
 	if(end != normalized + normalized_len || errno == ERANGE){
 		result.error = (Error){
 			.offset = start + (i32)(end - normalized),
-			.typ = Err_InvalidNumber,
+			.type = Err_InvalidNumber,
 		};
 		return result;
 	}
@@ -361,11 +361,11 @@ Scanner_Result scan_integer(Scanner* sc, i32 start, rune first){
 		i32 digit_offset = sc->current;
 		scan_next(sc);
 
-		if(error.typ == Err_None){
+		if(error.type == Err_None){
 			if(value > (INT64_MAX - digit) / base){
 				error = (Error){
 					.offset = digit_offset,
-					.typ = Err_InvalidNumber,
+					.type = Err_InvalidNumber,
 					.got.character = r,
 				};
 			} else {
@@ -384,7 +384,7 @@ Scanner_Result scan_integer(Scanner* sc, i32 start, rune first){
 	if(!has_body){
 		error = (Error){
 			.offset = sc->current,
-			.typ = Err_InvalidNumber,
+			.type = Err_InvalidNumber,
 			.got.character = scan_peek(sc, 0),
 		};
 	}
@@ -411,7 +411,7 @@ Scanner_Result scan_next_token(Scanner* sc){
 		}
 
 		Error error = scan_comment(sc);
-		if(error.typ != Err_None){
+		if(error.type != Err_None){
 			Scanner_Result result = scanner_result(Tk_Unknown, start, sc->current);
 			result.error = error;
 			return result;
@@ -477,7 +477,7 @@ Scanner_Result scan_next_token(Scanner* sc){
 	if(type == Tk_Unknown){
 		result.error = (Error){
 			.offset = start,
-			.typ = Err_UnknownChar,
+			.type = Err_UnknownChar,
 			.got.character = r,
 		};
 	}

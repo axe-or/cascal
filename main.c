@@ -24,10 +24,18 @@ int main(){
 	printf("%.*s\n", strf(source));
 
 	AST ast = {0};
-	parse(source, &ast, &arena);
+	Error e = parse(source, &ast, &arena);
+	if(e.type){
+		e.file = strlit("source.txt");
+		printf("%.*s:%d error[E%04d]: %.*s\n", strf(e.file), e.offset, e.type, strf(error_type_name(e.type)));
+		printf("%.*s\n", strf(token_type_name(e.expected.token_type)));
+		return 1;
+	}
+
 	node_format((IO_Writer){io_stdout()}, ast.root);
 }
 
 #include "base.c"
 #include "scanner.c"
 #include "parser.c"
+#include "errors.c"
