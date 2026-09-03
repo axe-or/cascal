@@ -19,7 +19,16 @@ typedef struct {
 
 typedef struct Sym_Table Sym_Table;
 
+typedef struct {
+    String key;
+    u32 hash;
+    Symbol sym;
+} Sym_Table_Slot;
+
 struct Sym_Table {
+    Sym_Table_Slot* slots;
+    isize slot_count;
+    Arena* arena;
 };
 
 Symbol* symtbl_get_by_name(Sym_Table* s, String s);

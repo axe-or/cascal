@@ -421,7 +421,8 @@ typedef struct { u32 v; } Type_ID;
 
 bool type_eq(Type const* a, Type const* b);
 
+u32 type_hash(Type const* type);
+
 Type type_from_node(Node* node, Arena* arena);
 
 // Type_ID type_intern(Type_Arena* ta, Type* t);
-

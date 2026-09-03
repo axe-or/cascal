@@ -3,16 +3,27 @@
 
 static inline
 u32 type_hash_mix_bytes(u32 current_hash, u8 const* data, usize data_size){
-    panic("todo");
+    for(usize i = 0; i < data_size; i += 1){
+        current_hash ^= data[i];
+        current_hash *= 16777619u;
+    }
+    return current_hash;
 }
 
 static inline
 u32 type_hash_mix_u32(u32 current_hash, u32 data){
-    panic("todo");
+    u8 const bytes[] = {
+        (u8)(data >> 0),
+        (u8)(data >> 8),
+        (u8)(data >> 16),
+        (u8)(data >> 24),
+    };
+    return type_hash_mix_bytes(current_hash, bytes, sizeof(bytes));
 }
 
 static inline
 u32 type_hash_(u32 h, Type const* t){
+    ensure(t != NULL, "cannot hash a null type");
     h = type_hash_mix_u32(h, (u32)t->kind);
 
     switch((enum Type_Kind)t->kind){
@@ -26,7 +37,11 @@ u32 type_hash_(u32 h, Type const* t){
         return type_hash_(h, t->slice.inner);
 
     case Type_Distinct:
-        h = type_hash_mix_bytes(h, (u8 const*)t->distinct.name.v, t->distinct.name.len);
+        ensure(t->distinct.name.len >= 0, "invalid distinct type name");
+        u64 name_len = (u64)t->distinct.name.len;
+        h = type_hash_mix_u32(h, (u32)name_len);
+        h = type_hash_mix_u32(h, (u32)(name_len >> 32));
+        h = type_hash_mix_bytes(h, (u8 const*)t->distinct.name.v, (usize)t->distinct.name.len);
         return type_hash_(h, t->distinct.inner);
 
     case Type_Array:
@@ -38,12 +53,17 @@ u32 type_hash_(u32 h, Type const* t){
     }
 }
 
-static inline
 u32 type_hash(Type const* t){
-    // TODO: Better seed value
-    return type_hash_(0, t);
-}
+    u32 hash = type_hash_(2166136261u, t);
 
+    // murmur3 final avalanche
+    hash ^= hash >> 16;
+    hash *= 0x85ebca6bu;
+    hash ^= hash >> 13;
+    hash *= 0xc2b2ae35u;
+    hash ^= hash >> 16;
+    return hash;
+}
 
 bool type_eq(Type const* a, Type const* b){
     if(a->kind != b->kind){

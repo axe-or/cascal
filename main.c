@@ -21,40 +21,19 @@ String read_file_whole(char const* path){
 arena_declare_static(arena, 512 * 1024);
 
 int main(){
-	Array(f64) arr = {0};
-	array_init(&arr, &arena, 17);
+	String source = read_file_whole("source.txt");
+	printf("%.*s\n", strf(source));
 
-	for(int i = 0; i < 20; i++){
-		array_push(&arr, i * 2 + 1);
+	AST ast = {0};
+	Error e = parse(source, &ast, &arena);
+	if(e.type){
+		e.file = strlit("source.txt");
+		printf("%.*s:%d error[E%04d]: %.*s\n", strf(e.file), e.offset, e.type, strf(error_type_name(e.type)));
+		printf("%.*s\n", strf(token_type_name(e.expected.token_type)));
+		return 1;
 	}
 
-	printf("len: %zu cap: %zu\n", arr.raw.len, arr.raw.cap);
-	for(int i = 0; i < arr.raw.len; i++){
-		printf("%g ", *array_get(arr, i));
-	} printf("\n");
-
-	for(int i = 0; i < 10; i++){
-		array_pop(&arr, NULL);
-	}
-
-	printf("len: %zu cap: %zu [", arr.raw.len, arr.raw.cap);
-	for(int i = 0; i < arr.raw.len; i++){
-		printf("%g ", *array_get(arr, i));
-	} printf("]\n");
-
-	// String source = read_file_whole("source.txt");
-	// printf("%.*s\n", strf(source));
-
-	// AST ast = {0};
-	// Error e = parse(source, &ast, &arena);
-	// if(e.type){
-	// 	e.file = strlit("source.txt");
-	// 	printf("%.*s:%d error[E%04d]: %.*s\n", strf(e.file), e.offset, e.type, strf(error_type_name(e.type)));
-	// 	printf("%.*s\n", strf(token_type_name(e.expected.token_type)));
-	// 	return 1;
-	// }
-
-	// node_format((IO_Writer){io_stdout()}, ast.root); putchar('\n');
+	node_format((IO_Writer){io_stdout()}, ast.root); putchar('\n');
 }
 
 #include "base.c"
