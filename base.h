@@ -187,7 +187,6 @@ Rune_Decoded rune_decode(u8 const* buf, u32 buflen);
 	? (typeof(S)){ .v = &(S).v[(A)], .len = (B) - (A) } \
 	: (typeof(S)){0})
 
-
 // Arena (linear) allocator, backed by a static sized buffer
 typedef struct {
 	u8* data;

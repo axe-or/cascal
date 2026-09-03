@@ -18,7 +18,7 @@ void scanner_tests(Test* t){
 
 	for(usize i = 0; i < sizeof(expected) / sizeof(expected[0]); i += 1){
 		Scanner_Result result = scan_next_token(&tokens);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, result.token.type == expected[i]);
 		if(i == 0){
 			t_pred(t, result.token.value_int == 123);
@@ -33,13 +33,13 @@ void scanner_tests(Test* t){
 	Scanner string = {.source = strlit("\"line\\nnext\"")};
 	Scanner_Result string_result = scan_next_token(&string);
 	t_pred(t, string_result.token.type == Tk_String);
-	t_pred(t, string_result.error.typ == Err_None);
+	t_pred(t, string_result.error.type == Err_None);
 
 	Scanner invalid_string = {.source = strlit("\"line\nnext\"")};
-	t_pred(t, scan_next_token(&invalid_string).error.typ == Err_InvalidStringChar);
+	t_pred(t, scan_next_token(&invalid_string).error.type == Err_InvalidStringChar);
 
 	Scanner unclosed_comment = {.source = strlit("/* outer /* inner */")};
-	t_pred(t, scan_next_token(&unclosed_comment).error.typ == Err_UnclosedComment);
+	t_pred(t, scan_next_token(&unclosed_comment).error.type == Err_UnclosedComment);
 
 	Scanner procedure_tokens = {.source = strlit("-> while -")};
 	Token_Type procedure_expected[] = {
@@ -50,7 +50,7 @@ void scanner_tests(Test* t){
 	};
 	for(usize i = 0; i < sizeof(procedure_expected) / sizeof(procedure_expected[0]); i += 1){
 		Scanner_Result result = scan_next_token(&procedure_tokens);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, result.token.type == procedure_expected[i]);
 	}
 }

@@ -60,7 +60,7 @@ void parser_tests(Test* t){
 	{
 		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("1 + 2 * 3"), &fixture);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, is_binary(result.node, Tk_Plus));
 		if(is_binary(result.node, Tk_Plus)){
 			Node* left = result.node->value.binary.left;
@@ -78,7 +78,7 @@ void parser_tests(Test* t){
 	{
 		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("10 - 3 - 2"), &fixture);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, is_binary(result.node, Tk_Minus));
 		if(is_binary(result.node, Tk_Minus)){
 			t_pred(t, is_binary(result.node->value.binary.left, Tk_Minus));
@@ -89,7 +89,7 @@ void parser_tests(Test* t){
 	{
 		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("a = b"), &fixture);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, result.node != NULL && result.node->type == Node_Identifier);
 		t_pred(t, scan_peek_token(&fixture.parser.scanner).token.type == Tk_Assign);
 	}
@@ -97,7 +97,7 @@ void parser_tests(Test* t){
 	{
 		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("1 + 2 << 3 & 4"), &fixture);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, is_binary(result.node, Tk_Plus));
 		if(is_binary(result.node, Tk_Plus)){
 			Node* right = result.node->value.binary.right;
@@ -111,7 +111,7 @@ void parser_tests(Test* t){
 	{
 		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("-value.field * (2 + 3)"), &fixture);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, is_binary(result.node, Tk_Star));
 		if(is_binary(result.node, Tk_Star)){
 			Node* left = result.node->value.binary.left;
@@ -127,7 +127,7 @@ void parser_tests(Test* t){
 	{
 		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("not false or true"), &fixture);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, is_binary(result.node, Tk_LogicOr));
 		if(is_binary(result.node, Tk_LogicOr)){
 			Node* left = result.node->value.binary.left;
@@ -144,7 +144,7 @@ void parser_tests(Test* t){
 	{
 		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("\"line\\nnext\""), &fixture);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, result.node != NULL && result.node->type == Node_String);
 		if(result.node != NULL && result.node->type == Node_String){
 			t_pred(t, str_equal(result.node->value.str, strlit("line\nnext")));
@@ -155,7 +155,7 @@ void parser_tests(Test* t){
 		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("(1 + 2"), &fixture);
 		t_pred(t, result.node == NULL);
-		t_pred(t, result.error.typ == Err_UnexpectedToken);
+		t_pred(t, result.error.type == Err_UnexpectedToken);
 		t_pred(t, result.error.expected.token_type == Tk_ParenClose);
 		t_pred(t, result.error.got.token_type == Tk_EndOfFile);
 	}
@@ -164,7 +164,7 @@ void parser_tests(Test* t){
 		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("1 +"), &fixture);
 		t_pred(t, result.node == NULL);
-		t_pred(t, result.error.typ == Err_UnexpectedToken);
+		t_pred(t, result.error.type == Err_UnexpectedToken);
 		t_pred(t, result.error.got.token_type == Tk_EndOfFile);
 	}
 
@@ -172,7 +172,7 @@ void parser_tests(Test* t){
 		Parser_Fixture fixture;
 		parser_fixture_init(strlit("[32][]^Item"), &fixture);
 		Parser_Result result = parse_type(&fixture.parser);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, result.node != NULL
 			&& result.node->type == Node_ParserType
 			&& result.node->value.parser_type.kind == ParserType_Array);
@@ -211,7 +211,7 @@ void parser_tests(Test* t){
 		parser_fixture_init(strlit("[]"), &fixture);
 		Parser_Result result = parse_type(&fixture.parser);
 		t_pred(t, result.node == NULL);
-		t_pred(t, result.error.typ == Err_UnexpectedToken);
+		t_pred(t, result.error.type == Err_UnexpectedToken);
 		t_pred(t, result.error.got.token_type == Tk_EndOfFile);
 	}
 
@@ -246,7 +246,7 @@ void parser_tests(Test* t){
 		parser_fixture_init(strlit("1 2"), &fixture);
 		Parser_Result result = parse_expression_list(&fixture.parser, Tk_EndOfFile);
 		t_pred(t, has_error(result));
-		t_pred(t, result.error.typ == Err_UnexpectedToken);
+		t_pred(t, result.error.type == Err_UnexpectedToken);
 		t_pred(t, result.error.expected.token_type == Tk_Comma);
 		t_pred(t, result.error.got.token_type == Tk_Integer);
 	}
@@ -255,7 +255,7 @@ void parser_tests(Test* t){
 		Parser_Fixture fixture;
 		parser_fixture_init(strlit("var first, second: [4]^Int = 1 + 2, other;"), &fixture);
 		Parser_Result result = parse_var_declaration(&fixture.parser);
-		t_pred(t, result.error.typ == Err_None);
+		t_pred(t, result.error.type == Err_None);
 		t_pred(t, result.node != NULL && result.node->type == Node_VarDefinition);
 		t_pred(t, fixture.parser.ast.root == result.node);
 		if(result.node != NULL && result.node->type == Node_VarDefinition){
@@ -298,7 +298,7 @@ void parser_tests(Test* t){
 		parser_fixture_init(strlit("var first, second: Int = 1"), &fixture);
 		Parser_Result result = parse_var_declaration(&fixture.parser);
 		t_pred(t, result.node == NULL);
-		t_pred(t, result.error.typ == Err_MismatchedListCardinality);
+		t_pred(t, result.error.type == Err_MismatchedListCardinality);
 		t_pred(t, result.error.expected.cardinality == 2);
 		t_pred(t, result.error.got.cardinality == 1);
 	}
@@ -395,7 +395,7 @@ void parser_tests(Test* t){
 			&ast,
 			&arena
 		);
-		t_pred(t, error.typ == Err_None);
+		t_pred(t, error.type == Err_None);
 		t_pred(t, ast.root != NULL && ast.root->type == Node_ProcDefinition);
 		if(ast.root != NULL && ast.root->type == Node_ProcDefinition){
 			Node* foo_node = ast.root;
@@ -468,7 +468,7 @@ void parser_tests(Test* t){
 		Arena arena = arena_from_buffer(memory, sizeof(memory));
 		AST ast = {0};
 		Error error = parse(strlit("var value: int = 1;"), &ast, &arena);
-		t_pred(t, error.typ == Err_UnexpectedToken);
+		t_pred(t, error.type == Err_UnexpectedToken);
 		t_pred(t, error.expected.token_type == Tk_Proc);
 		t_pred(t, error.got.token_type == Tk_Var);
 		t_pred(t, ast.root == NULL);

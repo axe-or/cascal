@@ -14,8 +14,14 @@ enum Symbol_Kind {
 typedef struct {
     String name;
     u8 kind;
-
+    Type* type; // TODO: Replace with type ID
 } Symbol;
 
-typedef struct {
-} Sym_Table;
+typedef struct Sym_Table Sym_Table;
+
+struct Sym_Table {
+};
+
+Symbol* symtbl_get_by_name(Sym_Table* s, String s);
+
+// Symbol* sym_find(Sym_Table* s);

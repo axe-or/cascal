@@ -383,11 +383,14 @@ typedef struct {
 } Distinct_Type;
 
 typedef struct {
-    Type** returns;
-    Type** args;
+	String* names;
+} Struct_Type;
 
-    u16 returns_len;
-    u16 args_len;
+typedef Slice(Type*) Type_List;
+
+typedef struct {
+    Type_List args;
+    Type_List returns;
 } Proc_Type;
 
 typedef enum {
@@ -416,15 +419,9 @@ struct Type {
 
 typedef struct { u32 v; } Type_ID;
 
-// Type interner
-typedef struct {
-	Type* types;
-	// map[type_hash]array(Type_ID)
-	isize len;
-	isize cap;
-} Type_Arena;
-
 bool type_eq(Type const* a, Type const* b);
+
+Type type_from_node(Node* node, Arena* arena);
 
 // Type_ID type_intern(Type_Arena* ta, Type* t);
 
