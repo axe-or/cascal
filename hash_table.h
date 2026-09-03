@@ -45,8 +45,7 @@ u32 hash32(void const* data, usize len, u32 seed){
 	hash ^= hash >> 13;
 	hash *= 0xc2b2ae35u;
 	hash ^= hash >> 16;
-	// IMPORTANT: Hash 0 is reserved for empty slot
-	return (hash == 0) ? 1 : hash;
+	return hash;
 }
 
 typedef struct {
@@ -58,12 +57,20 @@ typedef struct {
 typedef struct {
 	Hash_Table_Slot* slots;
 	u32 slot_count;
+	u32 in_use;
 	Arena* arena;
 } Hash_Table;
 
 static inline
 bool ht_valid_cap(u32 n){
 	return (n & (n - 1)) == 0;
+}
+
+static inline
+u32 ht_key_hash(String k){
+	// IMPORTANT: Hash 0 is reserved for empty slot
+	u32 h = hash32(k.v, k.len, 0);
+	return h ? h : 1;
 }
 
 static inline
@@ -85,7 +92,7 @@ Hash_Table_Slot* ht_find(Hash_Table* tbl, u32 hash, String key){
 	u32 mask = tbl->slot_count - 1;
 	u32 pos = hash & mask;
 
-	for(u32 probe = pos; probe < tbl->slot_count; probe += 1){
+	for(u32 probe = 0; probe < tbl->slot_count; probe += 1){
 		Hash_Table_Slot* slot = &tbl->slots[pos];
 		if(slot->hash == 0){
 			return NULL;
@@ -99,4 +106,48 @@ Hash_Table_Slot* ht_find(Hash_Table* tbl, u32 hash, String key){
 	}
 
 	return NULL;
+}
+
+static inline
+bool ht_needs_growth(Hash_Table const* tbl){
+	u32 threshold = (tbl->slot_count * 80) / 100;
+	return (tbl->in_use >= tbl->slot_count) || (tbl->in_use >= threshold);
+}
+
+static inline
+void ht_put(Hash_Table* tbl, String key, f32 value){
+	if(ht_needs_growth(tbl)){ // TODO: Defer rezising to after we add new key, here just cehck minimum vacancy
+		panic("todo: growth");
+	}
+
+	u32 mask = tbl->slot_count - 1;
+	u32 hash = ht_key_hash(key);
+	u32 first_pos = hash & mask;
+
+	u32 pos = first_pos;
+	do {
+		Hash_Table_Slot* slot = &tbl->slots[pos];
+
+		if(slot->hash == 0){
+			// Vacant slot, place key
+			slot->key = key;
+			slot->value = value;
+			slot->hash = hash;
+			tbl->in_use += 1;
+			return;
+		}
+
+		if((hash == slot->hash) && str_equal(key, slot->key)){
+			slot->value = value;
+			return;
+		}
+
+		pos = (pos + 1) & mask;
+
+	} while(pos != first_pos);
+}
+
+
+static inline
+void ht_remove(Hash_Table* tbl, String key){
 }
