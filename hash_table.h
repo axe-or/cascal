@@ -144,14 +144,13 @@ void ht_put(Hash_Table* tbl, String key, f32 value){
 		panic("todo: growth");
 	}
 
-	u32 mask = tbl->slot_count - 1;
-
 	Hash_Table_Slot incoming = {
 		.key   = key,
 		.value = value,
 		.hash  = ht_key_hash(key),
 	};
 
+	u32 mask = tbl->slot_count - 1;
 	u32 pos = incoming.hash & mask;
 	u32 incoming_dist = 0;
 
@@ -186,41 +185,34 @@ void ht_put(Hash_Table* tbl, String key, f32 value){
 
 static inline
 bool ht_remove(Hash_Table* tbl, String key){
+	u32 mask = tbl->slot_count - 1;
 	u32 hash = ht_key_hash(key);
+
 	Hash_Table_Slot* found = ht_find(tbl, hash, key);
 	if(found == NULL){
 		return false;
 	}
 
-	u32 mask = tbl->slot_count - 1;
-	u32 hole = (u32)(found - tbl->slots);
-	u32 next = (hole + 1) & mask;
+	u32 hole_pos = (u32)(found - tbl->slots);
+	u32 next_pos = (hole_pos + 1) & mask;
 
 	for(;;){
-		Hash_Table_Slot* slot = &tbl->slots[next];
+		Hash_Table_Slot* slot = &tbl->slots[next_pos];
+		u32 dist = ht_probe_distance(tbl, next_pos, slot->hash);
 
-		// Actual end of cluster.
-		if(slot->hash == 0){
+		if(slot->hash == 0 || dist == 0){
 			break;
 		}
 
-		u32 dist = ht_probe_distance(tbl, next, slot->hash);
+		tbl->slots[hole_pos] = *slot;
 
-		// This entry is already at home. It doesn't depend on the
-		// hole, and neither does the following Robin Hood run.
-		if(dist == 0){
-			break;
-		}
-
-		// Collapse the displaced run backward by one.
-		tbl->slots[hole] = *slot;
-
-		hole = next;
-		next = (next + 1) & mask;
+		hole_pos = next_pos;
+		next_pos = (next_pos + 1) & mask;
 	}
 
-	mem_zero(&tbl->slots[hole], sizeof(tbl->slots[hole]));
+	mem_zero(&tbl->slots[hole_pos], sizeof(tbl->slots[hole_pos]));
 	tbl->in_use -= 1;
+
 	return true;
 }
 
