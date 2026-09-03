@@ -61,8 +61,4 @@ void sm_arr_push(Small_Array* arr, T val){
     arr->len += 1;
 }
 
-// static inline
-// void sm_arr_pop(Small_Array* arr){}
-
-
 #undef T

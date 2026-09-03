@@ -32,7 +32,7 @@ int main(){
 		return 1;
 	}
 
-	node_format((IO_Writer){io_stdout()}, ast.root);
+	node_format((IO_Writer){io_stdout()}, ast.root); putchar('\n');
 }
 
 #include "base.c"
