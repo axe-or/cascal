@@ -59,6 +59,22 @@ void parser_tests(Test* t){
 
 	{
 		Parser_Fixture fixture;
+		parser_fixture_init(strlit("[2147483647]Int"), &fixture);
+		Parser_Result result = parse_type(&fixture.parser);
+		t_pred(t, result.error.type == Err_None);
+		if(result.node != NULL){
+			t_pred(t, result.node->value.parser_type.value.length == INT32_MAX);
+			expect_node_format(t, result.node, strlit("[2147483647]Int"));
+		}
+		parser_fixture_init(strlit("[2147483648]Int"), &fixture);
+		result = parse_type(&fixture.parser);
+		t_pred(t, result.error.type == Err_InvalidNumber);
+		t_pred(t, result.error.offset == 1);
+		t_pred(t, result.node == NULL);
+	}
+
+	{
+		Parser_Fixture fixture;
 		Parser_Result result = parse_test_expression(strlit("1 + 2 * 3"), &fixture);
 		t_pred(t, result.error.type == Err_None);
 		t_pred(t, is_binary(result.node, Tk_Plus));

@@ -688,6 +688,10 @@ Node* parse_type_inner(Parser* parser){
 			parser_unexpected(parser, length, Tk_Integer);
 			return NULL;
 		}
+		if(length.value_int < 0 || length.value_int > INT32_MAX){
+			parser->error = (Error){.offset = length.start, .type = Err_InvalidNumber};
+			return NULL;
+		}
 		if(!parser_expect(parser, Tk_SquareClose)){
 			return NULL;
 		}
@@ -702,7 +706,7 @@ Node* parse_type_inner(Parser* parser){
 			(Parser_Type){
 				.value = {
 					.element = element,
-					.length = length.value_int,
+					.length = (i32)length.value_int,
 				},
 				.kind = ParserType_Array,
 			}
@@ -1268,7 +1272,7 @@ void parser_type_format_ctx(Node_Format_Context* context, Node* node){
 		parser_type_format_ctx(context, type.value.element);
 		break;
 	case ParserType_Array:
-		node_format_write(context, "[%u]", type.value.length);
+		node_format_write(context, "[%d]", type.value.length);
 		parser_type_format_ctx(context, type.value.element);
 		break;
 	case ParserType_Pointer:

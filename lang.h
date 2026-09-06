@@ -186,7 +186,7 @@ struct Parser_Type {
 
 		struct {
 			Node* element;
-			u32 length;
+			i32 length;
 		};
 	} value;
 
@@ -364,29 +364,31 @@ enum Type_Kind {
 
 typedef struct Type Type;
 
+// Index into a type arena. Child IDs must belong to the same arena.
+typedef struct { u32 v; } Type_ID;
+
 typedef struct {
-    Type* inner;
+    Type_ID inner;
 } Pointer_Type;
 
 typedef struct {
-    Type* inner;
+    Type_ID inner;
 } Slice_Type;
 
 typedef struct {
-    Type* inner;
+    Type_ID inner;
     i32 size;
 } Array_Type;
 
 typedef struct {
+    Type_ID inner;
     String name;
-    Type* inner;
 } Distinct_Type;
 
 typedef struct {
-	String* names;
 } Struct_Type;
 
-typedef Slice(Type*) Type_List;
+typedef Slice(Type_ID) Type_List;
 
 typedef struct {
     Type_List args;
@@ -417,12 +419,40 @@ struct Type {
     u8 kind;
 };
 
-typedef struct { u32 v; } Type_ID;
-
 bool type_eq(Type const* a, Type const* b);
 
 u32 type_hash(Type const* type);
 
 Type type_from_node(Node* node, Arena* arena);
 
-// Type_ID type_intern(Type_Arena* ta, Type* t);
+// Interned set of types.
+//
+// The `next_hash` array keeps a linked list of IDs of hash collisions so we can
+// find a type in case its hash collides with another type. In the unlikely
+// example below, `D` colided with  `C` which collided with `A`. Note that the
+// ID is just an index into the type storage, and the hash->id mapping is stored
+// out of band in a hash map, where we store the head of the collision list.
+//
+// ID        | 0 | 1 | 2 | 3 | 4 | 5 | 6 |
+// hash      | _ | x | y | x | x | z | w |
+//-----------|---|---|---|---|---|---|---|
+// types     | _ | A | B | C | D | E | F |
+// next_hash | 0 | 0 | 0 | 1 | 3 | 0 | 0 |
+//
+// Hash | ID head
+//    x | 4        (table chain: 4 -> 3 -> 1)
+//    y | 2
+//    z | 5
+//    w | 6
+//
+typedef struct {
+	Type* types;
+	Type_ID* next_hash;
+	usize cap;
+	usize len;
+
+	Arena* arena;
+} Type_Arena;
+
+Type_ID type_intern(Type_Arena* ta, Type* t);
+

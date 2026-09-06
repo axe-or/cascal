@@ -130,7 +130,7 @@ void @insert(@Hash_Table* tbl, String key, f32 value){
 }
 
 static inline
-bool ht_remove(@Hash_Table* tbl, String key){
+bool @remove(@Hash_Table* tbl, String key){
 	u32 mask = tbl->slot_count - 1;
 	u32 hash = @key_hash(key);
 

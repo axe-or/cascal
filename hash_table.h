@@ -133,7 +133,7 @@ void earnings_insert(Earnings* tbl, String key, f32 value){
 }
 
 static inline
-bool ht_remove(Earnings* tbl, String key){
+bool earnings_remove(Earnings* tbl, String key){
 	u32 mask = tbl->slot_count - 1;
 	u32 hash = earnings_key_hash(key);
 
