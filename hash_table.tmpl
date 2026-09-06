@@ -19,7 +19,7 @@ typedef struct {
 	((tbl)->in_use >= (tbl)->slot_count) || ((tbl)->in_use >= (((tbl)->slot_count * 80) / 100))
 
 static inline
-u32 @key_hash(String key){
+u32 @key_hash(@K key){
 	// IMPORTANT: Hash 0 is reserved for empty slot
 	u32 h = @hash_func(key);
 	return h ? h : 1;
@@ -45,7 +45,7 @@ u32 @probe_distance(@Hash_Table const* tbl, u32 pos, u32 hash){
 }
 
 static inline
-@Hash_Table_Slot* @find(@Hash_Table const* tbl, u32 hash, String key){
+@Hash_Table_Slot* @find(@Hash_Table const* tbl, u32 hash, @K key){
 	if(tbl->slot_count == 0){
 		return NULL;
 	}
@@ -68,7 +68,7 @@ static inline
 			return NULL;
 		}
 
-		if((slot->hash == hash) && str_equal(slot->key, key)){
+		if((slot->hash == hash) && @eq_func(slot->key, key)){
 			return slot;
 		}
 
@@ -78,14 +78,14 @@ static inline
 }
 
 static inline
-f32* @get(@Hash_Table const* tbl, String key){
+@V* @get(@Hash_Table const* tbl, @K key){
 	u32 hash = @key_hash(key);
 	@Hash_Table_Slot* slot = @find(tbl, hash, key);
 	return &slot->value;
 }
 
 static inline
-void @insert(@Hash_Table* tbl, String key, f32 value){
+void @insert(@Hash_Table* tbl, @K key, @V value){
 	if(ht_needs_growth(tbl)){
 		panic("todo: growth");
 	}
@@ -109,7 +109,7 @@ void @insert(@Hash_Table* tbl, String key, f32 value){
 			return;
 		}
 
-		if((slot->hash == incoming.hash) && str_equal(slot->key, incoming.key)){
+		if((slot->hash == incoming.hash) && @eq_func(slot->key, incoming.key)){
 			slot->value = incoming.value;
 			return;
 		}
@@ -130,7 +130,7 @@ void @insert(@Hash_Table* tbl, String key, f32 value){
 }
 
 static inline
-bool @remove(@Hash_Table* tbl, String key){
+bool @remove(@Hash_Table* tbl, @K key){
 	u32 mask = tbl->slot_count - 1;
 	u32 hash = @key_hash(key);
 

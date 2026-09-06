@@ -47,13 +47,14 @@ M.header_prelude = '#pragma once\n/* Auto generated file. DO NOT EDIT. */\n\n'
 local ht_template = M.read_file('hash_table.tmpl')
 
 function M.hash_table(opts)
-    ensure_strings(opts, {'key', 'value', 'name', 'hash_func'})
+    ensure_strings(opts, {'key', 'value', 'name', 'hash_func', 'eq_func'})
 
     local env = {
         K = opts.key,
         V = opts.value,
         Hash_Table = opts.name,
         hash_func = opts.hash_func;
+        eq_func = opts.eq_func;
         prefix = opts.prefix or opts.name:lower() .. '_',
     }
 

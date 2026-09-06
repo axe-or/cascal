@@ -419,7 +419,10 @@ struct Type {
     u8 kind;
 };
 
-bool type_eq(Type const* a, Type const* b);
+bool type_eq(Type a, Type b);
+
+static inline
+bool u32_eq(u32 a, u32 b){ return a == b; }
 
 u32 type_hash(Type const* type);
 
