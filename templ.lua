@@ -1,4 +1,6 @@
-local function read_file(path)
+local M = {}
+
+function M.read_file(path)
     local f = io.open(path, "r")
     assert(f, "failed to open file")
     local data = f:read("a*")
@@ -6,7 +8,16 @@ local function read_file(path)
     return data
 end
 
-local function expand_template(text, values)
+function M.write_file(path, data)
+    local f = io.open(path, "w")
+    assert(f, "failed to open file")
+	f:write(data)
+	print(path)
+    f:close()
+    return data
+end
+
+function M.expand_template(text, values)
     return (text:gsub("(\\*)@([%a_][%w_]*)", function(backslashes, key)
         local prefix = string.rep("\\", math.floor(#backslashes / 2))
 
@@ -31,9 +42,11 @@ local function ensure_strings(tbl, keys)
     end
 end
 
-local ht_template = read_file('hash_table.tmpl')
+M.header_prelude = '#pragma once\n/* Auto generated file. DO NOT EDIT. */\n\n'
 
-local function hash_table(opts)
+local ht_template = M.read_file('hash_table.tmpl')
+
+function M.hash_table(opts)
     ensure_strings(opts, {'key', 'value', 'name', 'hash_func'})
 
     local env = {
@@ -49,15 +62,7 @@ local function hash_table(opts)
     end
     env.Hash_Table_Slot = env.Hash_Table .. "_Slot"
 
-    return expand_template(ht_template, env)
+    return M.expand_template(ht_template, env)
 end
 
-
-local output = hash_table {
-    key = 'String',
-    value = 'f32',
-    hash_func = 'str_hash',
-    name = 'Earnings'
-}
-
-print(output)
+return M
