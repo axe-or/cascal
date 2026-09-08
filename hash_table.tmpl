@@ -26,15 +26,18 @@ u32 @key_hash(@K key){
 }
 
 static inline
-void @init(@Hash_Table* tbl, u32 cap, Arena* arena){
+bool @init(@Hash_Table* tbl, u32 cap, Arena* arena){
+	ensure(ht_valid_cap(cap), "invalid capacity, must be a power of 2");
 	mem_zero(tbl, sizeof(*tbl));
 	tbl->arena = arena;
 	
 	if(cap){
 		tbl->slots = arena_make(tbl->arena, @Hash_Table_Slot, cap);
-		ensure(tbl->slots, "allocation error");
+		if(!tbl->slots){ return false; }
 		tbl->slot_count = cap;
 	}
+
+	return true;
 }
 
 static inline

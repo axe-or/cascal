@@ -428,6 +428,8 @@ u32 type_hash(Type const* type);
 
 Type type_from_node(Node* node, Arena* arena);
 
+#include "gen/type_id_by_hash.c"
+
 // Interned set of types.
 //
 // The `next_hash` array keeps a linked list of IDs of hash collisions so we can
@@ -453,6 +455,7 @@ typedef struct {
 	Type_ID* next_hash;
 	usize cap;
 	usize len;
+	Type_ID_By_Hash id_by_hash;
 
 	Arena* arena;
 } Type_Arena;

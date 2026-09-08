@@ -43,28 +43,28 @@ u32 type_hash(Type const* t){
     }
 }
 
-bool type_eq(Type const* a, Type const* b){
-    if(a->kind != b->kind){
+bool type_eq(Type a, Type b){
+    if(a.kind != b.kind){
         return false;
     }
 
-    switch((enum Type_Kind)a->kind){
+    switch((enum Type_Kind)a.kind){
     case Type_Primitive:
-        return a->primitive == b->primitive;
+        return a.primitive == b.primitive;
 
     case Type_Pointer:
-        return a->pointer.inner.v == b->pointer.inner.v;
+        return a.pointer.inner.v == b.pointer.inner.v;
 
     case Type_Slice:
-        return a->slice.inner.v == b->slice.inner.v;
+        return a.slice.inner.v == b.slice.inner.v;
 
     case Type_Distinct:
-        return str_equal(a->distinct.name, b->distinct.name)
-            && a->distinct.inner.v == b->distinct.inner.v;
+        return str_equal(a.distinct.name, b.distinct.name)
+            && a.distinct.inner.v == b.distinct.inner.v;
 
     case Type_Array:
-        return (a->array.size == b->array.size)
-            && a->array.inner.v == b->array.inner.v;
+        return (a.array.size == b.array.size)
+            && a.array.inner.v == b.array.inner.v;
 
     default:
         panic("invalid type kind");
@@ -79,12 +79,14 @@ bool type_arena_valid_capacity(usize n){
 Type_Arena type_arena_make(Type_Arena* ta, usize cap, Arena* arena){
 	ensure(type_arena_valid_capacity(cap), "capacity must be a power of 2");
 
-
 	Type* types = arena_make(arena, Type, cap);
 	ensure(types, "allocation error");
 
 	Type_ID* next_hash = arena_make(arena, Type_ID, cap);
 	ensure(next_hash, "allocation error");
+ 
+    bool ok = type_id_hash_init(&ta->id_by_hash, cap, arena);
+    ensure(ok, "failed to initialize type interning table");
 
 	Type_Arena res = {
 		.types = types,

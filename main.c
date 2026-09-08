@@ -1,7 +1,6 @@
 #include "base.h"
 #include <stdio.h>
 #include "lang.h"
-#include "array.h"
 
 extern void* calloc(size_t, size_t);
 
