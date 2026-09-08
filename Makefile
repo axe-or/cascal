@@ -1,6 +1,6 @@
 CC := clang
 WFLAGS := -Wall -Wextra -Werror=uninitialized -Werror=return-type
-CFLAGS := -std=c17 -fwrapv -fno-strict-aliasing -O0 -g
+CFLAGS := -I. -std=c17 -fwrapv -fno-strict-aliasing -O0 -g
 #----------------
 
 EXE := cascal.exe

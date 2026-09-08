@@ -101,12 +101,67 @@ Type_Arena type_arena_make(Type_Arena* ta, usize cap, Arena* arena){
 }
 
 // Type_ID type_intern(Type_Arena* ta, Type* t){
-// 	u32 hash = type_hash(t);
+//     u32 hash = type_hash(t);
+//     Type_ID* tid = type_id_hash_get(ta->id_by_hash, hash);
+//     if(tid == NULL){
+//         type_id_hash_insert(&ta->id_by_hash, hash, );
+//     }
+//     else {
+
+//     }
 // }
 
-// static inline
-// Type_ID type_arena_push_type(Type_Arena* ta){
-// }
+static inline
+bool type_arena_reserve(Type_Arena* ta, usize new_cap){
+    if(ta->cap >= new_cap){
+        return true;
+    }
+    ensure(type_arena_valid_capacity(new_cap), "invalid capacity");
+
+    Arena_Reg restore = arena_region(ta->arena);
+
+    Type* new_types = arena_realloc(ta->arena, ta->types,
+        ta->cap * sizeof(*new_types),
+        new_cap * sizeof(*new_types),
+        alignof(typeof(*new_types))
+    );
+    if(!new_types){
+        goto fail;
+    }
+
+    Type_ID* new_next_hash = arena_realloc(ta->arena, ta->next_hash,
+        ta->cap * sizeof(*new_next_hash),
+        new_cap * sizeof(*new_next_hash),
+        alignof(typeof(*new_next_hash))
+    );
+    if(!new_next_hash){
+        goto fail;
+    }
+
+    ta->cap = new_cap;
+    ta->types = new_types;
+    ta->next_hash = new_next_hash;
+    return true;
+
+fail:
+    arena_region_restore(restore);
+    return false;
+}
+
+static inline
+Type_ID type_arena_push_type(Type_Arena* ta, Type t){
+    if(ta->cap >= ta->len){
+        usize new_cap = max(16, ta->cap * 2);
+
+
+        panic("todo: grow types + next_hash");
+    }
+
+    Type_ID res = {ta->len};
+    ta->types[ta->len] = t;
+    ta->len += 1;
+    return res;
+}
 
 // Type type_from_node(Node* node, Arena* arena){
 //     ensure(node->type == Node_ParserType, "not a parser type");

@@ -155,6 +155,7 @@ bool arena_resize(Arena* a, void* ptr, usize new_size){
 	a->offset = allocation_offset + new_size;
 	a->last_allocation_size = new_size;
 
+	// Zero out tail
 	if(new_size > old_size){
 		mem_zero(
 			(u8*)ptr + old_size,

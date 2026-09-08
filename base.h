@@ -214,7 +214,7 @@ void arena_reset(Arena* a);
 // Check whether a pointer lies inside the arena's backing buffer.
 bool arena_owns(Arena const* a, void const* ptr);
 
-// Allocate `size` bytes with the requested alignment. Returns NULL if the buffer does not have enough space.
+// Allocate zero filled `size` bytes with the requested alignment. Returns NULL if the buffer does not have enough space.
 void* arena_alloc(Arena* a, size_t size, size_t align);
 
 // Attempt to resize an allocation in-place. This only succeeds for the most recent allocation.
@@ -234,13 +234,13 @@ typedef struct {
 
 // Get a checkpoint of arena state
 static inline
-Arena_Reg arena_region_begin(Arena* a){
+Arena_Reg arena_region(Arena* a){
 	return (Arena_Reg){.arena = a, .offset = a->offset};
 }
 
 // Reset arena to a checkpoint
 static inline
-void arena_region_end(Arena_Reg r){
+void arena_region_restore(Arena_Reg r){
 	r.arena->offset = r.offset;
 }
 
