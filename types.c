@@ -2,6 +2,9 @@
 #include "lang.h"
 
 static inline
+Type_ID type_arena_push_type(Type_Arena* ta, Type t);
+
+static inline
 u32 type_hash_mix_u32(u32 current_hash, u32 data){
     u8 const bytes[] = {
         (u8)(data >> 0),
@@ -84,9 +87,12 @@ Type_Arena type_arena_make(Type_Arena* ta, usize cap, Arena* arena){
 
 	Type_ID* next_hash = arena_make(arena, Type_ID, cap);
 	ensure(next_hash, "allocation error");
- 
+
     bool ok = type_id_hash_init(&ta->id_by_hash, cap, arena);
     ensure(ok, "failed to initialize type interning table");
+
+    Type_ID null_id = type_arena_push_type(ta, (Type){.primitive = Prim_None, .kind = Type_Primitive});
+    ensure(null_id.v == 0, "failed to init dummy type");
 
 	Type_Arena res = {
 		.types = types,
@@ -152,9 +158,8 @@ static inline
 Type_ID type_arena_push_type(Type_Arena* ta, Type t){
     if(ta->cap >= ta->len){
         usize new_cap = max(16, ta->cap * 2);
-
-
-        panic("todo: grow types + next_hash");
+        bool ok = type_arena_reserve(ta, new_cap);
+        ensure(ok, "allocation error");
     }
 
     Type_ID res = {ta->len};
@@ -162,6 +167,16 @@ Type_ID type_arena_push_type(Type_Arena* ta, Type t){
     ta->len += 1;
     return res;
 }
+
+Type* type_arena_get(Type_Arena* ta, Type_ID id){
+    if(!id.v || id.v >= ta->len) {
+        return NULL;
+    }
+    return &ta->types[id.v];
+}
+
+// Type_ID type_intern(Type_Arena* ta, Type t){
+// }
 
 // Type type_from_node(Node* node, Arena* arena){
 //     ensure(node->type == Node_ParserType, "not a parser type");

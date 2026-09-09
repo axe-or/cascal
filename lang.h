@@ -460,5 +460,4 @@ typedef struct {
 	Arena* arena;
 } Type_Arena;
 
-Type_ID type_intern(Type_Arena* ta, Type* t);
 

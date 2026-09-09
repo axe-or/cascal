@@ -19,8 +19,8 @@ String read_file_whole(char const* path){
 
 arena_declare_static(arena, 512 * 1024);
 
-int main(){
-	String source = read_file_whole("source.txt");
+void entrypoint(){
+    String source = read_file_whole("source.txt");
 	printf("%.*s\n", strf(source));
 
 	AST ast = {0};
@@ -29,10 +29,14 @@ int main(){
 		e.file = strlit("source.txt");
 		printf("%.*s:%d error[E%04d]: %.*s\n", strf(e.file), e.offset, e.type, strf(error_type_name(e.type)));
 		printf("%.*s\n", strf(token_type_name(e.expected.token_type)));
-		return 1;
+		return;
 	}
 
 	node_format((IO_Writer){io_stdout()}, ast.root); putchar('\n');
+}
+
+int main(){
+    entrypoint();
 }
 
 #include "base.c"
