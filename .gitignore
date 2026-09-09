@@ -7,3 +7,8 @@ cascal
 *.o
 *.so
 *.gen.*
+
+
+# Added by cargo
+
+/target
