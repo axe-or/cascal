@@ -14,7 +14,6 @@ enum Token {
     Do,
     If,
     While,
-    /// `(let (name value ...) body...)`, with an implicit `do` body.
     Let,
 }
 
@@ -76,7 +75,6 @@ impl Scanner {
             }
         }
 
-        // The Option API cannot distinguish an unterminated string from EOF.
         None
     }
 
