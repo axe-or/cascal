@@ -6,8 +6,11 @@ CFLAGS := -I. -std=c17 -fwrapv -fno-strict-aliasing -O0 -g
 EXE := cascal.exe
 TEST_EXE := cascal_test.exe
 
-.PHONY: all clean test
+.PHONY: all clean test run
 all: $(EXE)
+
+run: $(EXE)
+	./$(EXE)
 
 $(EXE): $(wildcard *.c *.h) Makefile
 	$(CC) $(CFLAGS) -o $(EXE) main.c

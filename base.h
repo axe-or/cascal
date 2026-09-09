@@ -110,7 +110,7 @@ typedef _Atomic(bool) AtomicBool;
 
 ////~ Assertions
 
-// Abort program with a message 
+// Abort program with a message
 _Noreturn void panic_ex(char const* file, int line, char const* fmt, ...);
 
 // Assert that predicate is true, panic otherwhise
@@ -119,6 +119,12 @@ void ensure_ex(bool predicate, char const* msg, char const* file, int line);
 #define panic(fmt, ...) panic_ex(__FILE__, __LINE__, "" fmt "" __VA_OPT__(,) __VA_ARGS__)
 
 #define ensure(pred, msg) ensure_ex((pred), (msg), __FILE__, __LINE__)
+
+#ifdef BUILD_MODE_RELEASE
+	#define ensure_dbg(pred, msg)
+#else
+	#define ensure_dbg(pred, msg) ensure_ex((pred), (msg), __FILE__, __LINE__)
+#endif
 
 // Helper for unimplemented sections of code
 #define TODO() panic_ex("TODO", __FILE__, __LINE__)

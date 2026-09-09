@@ -1,4 +1,5 @@
 #include "base.h"
+#include "gen/type_id_by_hash.c"
 #include "lang.h"
 
 static inline
@@ -154,8 +155,41 @@ fail:
     return false;
 }
 
+Type* type_arena_get(Type_Arena const* ta, Type_ID id){
+    if(!id.v || id.v >= ta->len) {
+        return NULL;
+    }
+    return &ta->types[id.v];
+}
+
+static inline
+Type_ID type_arena_get_first_id(Type_Arena const* ta, u32 hash){
+	Type_ID* id = type_id_hash_get(&ta->id_by_hash, hash);
+	if(!id){
+		return (Type_ID){0};
+	}
+	return *id;
+}
+
+static inline
+Type_ID type_arena_find(Type_Arena const* ta, u32 hash, Type t){
+	for (
+		Type_ID cur = type_arena_get_first_id(ta, hash);
+		cur.v != 0;
+		cur = ta->next_hash[cur.v]
+	){
+		Type* candidate = type_arena_get(ta, cur);
+		if(type_eq(*candidate, t)){
+			return cur;
+		}
+	}
+
+	return (Type_ID){0};
+}
+
 static inline
 Type_ID type_arena_push_type(Type_Arena* ta, Type t){
+	ensure_dbg(type_arena_find(ta, type_hash(&t), t).v == 0, "Type already present in arena");
     if(ta->cap >= ta->len){
         usize new_cap = max(16, ta->cap * 2);
         bool ok = type_arena_reserve(ta, new_cap);
@@ -168,15 +202,14 @@ Type_ID type_arena_push_type(Type_Arena* ta, Type t){
     return res;
 }
 
-Type* type_arena_get(Type_Arena* ta, Type_ID id){
-    if(!id.v || id.v >= ta->len) {
-        return NULL;
-    }
-    return &ta->types[id.v];
+Type_ID type_intern(Type_Arena* ta, Type t){
+	u32 h = type_hash(&t);
+	Type_ID id = type_arena_find(ta, h, t);
+	if(id.v){
+		return id;
+	}
+	return type_arena_push_type(ta, t);
 }
-
-// Type_ID type_intern(Type_Arena* ta, Type t){
-// }
 
 // Type type_from_node(Node* node, Arena* arena){
 //     ensure(node->type == Node_ParserType, "not a parser type");

@@ -460,4 +460,6 @@ typedef struct {
 	Arena* arena;
 } Type_Arena;
 
+Type* type_arena_get(Type_Arena const* ta, Type_ID id);
 
+Type_ID type_intern(Type_Arena* ta, Type t);

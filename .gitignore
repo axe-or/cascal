@@ -7,3 +7,4 @@ cascal
 *.o
 *.so
 *.gen.*
+target
