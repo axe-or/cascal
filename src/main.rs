@@ -1,4 +1,5 @@
 use std::cell::{Ref, RefCell, RefMut};
+use std::fmt;
 use std::num::NonZeroU32;
 
 #[derive(Debug, PartialEq)]
@@ -193,6 +194,114 @@ impl AST {
             ast: AST::default(),
         }
         .parse()
+    }
+}
+
+impl fmt::Display for AST {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (index, &root) in self.roots.iter().enumerate() {
+            if index != 0 {
+                f.write_str("\n")?;
+            }
+            self.fmt_node(root, f)?;
+        }
+        Ok(())
+    }
+}
+
+impl AST {
+    fn fmt_node(&self, id: NodeID, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &*self.get(id) {
+            Node::Symbol(value) => f.write_str(value),
+            Node::String(value) => {
+                f.write_str("\"")?;
+                for c in value.chars() {
+                    match c {
+                        '"' => f.write_str("\\\"")?,
+                        '\\' => f.write_str("\\\\")?,
+                        '\n' => f.write_str("\\n")?,
+                        '\r' => f.write_str("\\r")?,
+                        '\t' => f.write_str("\\t")?,
+                        _ => write!(f, "{c}")?,
+                    }
+                }
+                f.write_str("\"")
+            }
+            // A leading sign routes these spellings through the number scanner.
+            Node::Number(value) if value.is_nan() => f.write_str("+NaN"),
+            Node::Number(value) if *value == f64::INFINITY => f.write_str("+inf"),
+            Node::Number(value) => write!(f, "{value}"),
+            Node::Call { callee, args } => {
+                f.write_str("(")?;
+                self.fmt_node(*callee, f)?;
+                self.fmt_tail(args, f)?;
+                f.write_str(")")
+            }
+            Node::Fn { params, body } => {
+                f.write_str("(fn (")?;
+                for (index, param) in params.iter().enumerate() {
+                    if index != 0 {
+                        f.write_str(" ")?;
+                    }
+                    f.write_str(param)?;
+                }
+                f.write_str(")")?;
+                self.fmt_body(*body, f)?;
+                f.write_str(")")
+            }
+            Node::Do(nodes) => {
+                f.write_str("(do")?;
+                self.fmt_tail(nodes, f)?;
+                f.write_str(")")
+            }
+            Node::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                f.write_str("(if")?;
+                self.fmt_tail(&[*condition, *then_branch], f)?;
+                if let Some(branch) = else_branch {
+                    self.fmt_tail(&[*branch], f)?;
+                }
+                f.write_str(")")
+            }
+            Node::While { condition, body } => {
+                f.write_str("(while ")?;
+                self.fmt_node(*condition, f)?;
+                self.fmt_body(*body, f)?;
+                f.write_str(")")
+            }
+            Node::Let { bindings, body } => {
+                f.write_str("(let (")?;
+                for (index, (name, value)) in bindings.iter().enumerate() {
+                    if index != 0 {
+                        f.write_str(" ")?;
+                    }
+                    write!(f, "{name} ")?;
+                    self.fmt_node(*value, f)?;
+                }
+                f.write_str(")")?;
+                self.fmt_body(*body, f)?;
+                f.write_str(")")
+            }
+        }
+    }
+
+    fn fmt_tail(&self, nodes: &[NodeID], f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for &node in nodes {
+            f.write_str(" ")?;
+            self.fmt_node(node, f)?;
+        }
+        Ok(())
+    }
+
+    fn fmt_body(&self, body: NodeID, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Omit only the implicit body wrapper, preserving explicit nested `do`s.
+        match &*self.get(body) {
+            Node::Do(nodes) => self.fmt_tail(nodes, f),
+            _ => self.fmt_tail(&[body], f),
+        }
     }
 }
 
@@ -550,5 +659,69 @@ mod parser_tests {
         *shared.get_mut(children[0]) = Node::Number(2.0);
         assert_eq!(*shared.get(children[1]), Node::Number(2.0));
         assert_eq!(*shared.get(id), Node::Number(2.0));
+    }
+}
+
+#[cfg(test)]
+mod display_tests {
+    use super::*;
+
+    #[test]
+    fn canonical_forms_round_trip_without_extra_body_wrappers() {
+        for (source, expected) in [
+            (" \n ", ""),
+            ("+3.00  .25 -0", "3\n0.25\n-0"),
+            (
+                "( let (x 1 b 2 y 9)\n(f x) y )",
+                "(let (x 1 b 2 y 9) (f x) y)",
+            ),
+            ("((fn (x y) (do x y) y) 1 2)", "((fn (x y) (do x y) y) 1 2)"),
+            (
+                "(while x (if y (f) (do (g) x)) (if x y))",
+                "(while x (if y (f) (do (g) x)) (if x y))",
+            ),
+            (
+                "(do) (fn ()) (let ()) (while 1)",
+                "(do)\n(fn ())\n(let ())\n(while 1)",
+            ),
+            (r#""hé\n\r\t\"\\\q""#, r#""hé\n\r\t\"\\\\q""#),
+        ] {
+            let ast = AST::parse(source).unwrap();
+            let printed = ast.to_string();
+            assert_eq!(printed, expected);
+            let reparsed = AST::parse(&printed).unwrap();
+            assert_eq!(ast.roots, reparsed.roots);
+            assert_eq!(ast.nodes, reparsed.nodes);
+            assert_eq!(reparsed.to_string(), printed);
+        }
+    }
+
+    #[test]
+    fn prints_shared_nodes_after_mutation() {
+        let mut ast = AST::default();
+        let child = ast.alloc(Node::Number(1.0));
+        let root = ast.alloc(Node::Do(vec![child, child]));
+        ast.roots.push(root);
+        *ast.get_mut(child) = Node::String("new".into());
+        assert_eq!(ast.to_string(), r#"(do "new" "new")"#);
+    }
+
+    #[test]
+    fn non_finite_numbers_remain_numbers() {
+        let ast = AST::parse("1e999 -1e999 +NaN").unwrap();
+        assert_eq!(ast.to_string(), "+inf\n-inf\n+NaN");
+        let reparsed = AST::parse(&ast.to_string()).unwrap();
+        for (id, expected) in
+            reparsed
+                .roots
+                .iter()
+                .zip([f64::INFINITY, f64::NEG_INFINITY, f64::NAN])
+        {
+            let node = reparsed.get(*id);
+            let Node::Number(value) = *node else {
+                panic!("expected number")
+            };
+            assert!(value == expected || (value.is_nan() && expected.is_nan()));
+        }
     }
 }
