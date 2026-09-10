@@ -1,0 +1,9 @@
+[
+	{
+		"label": "Build",
+		"command": "mingw32-make run",
+		"reveal": "no_focus",
+		"hide": "never",
+		"save": "all",
+	},
+]

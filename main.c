@@ -17,7 +17,7 @@ String read_file_whole(char const* path){
 	return (String){ .v = (char const*)data, .len = size };
 }
 
-arena_declare_static(arena, 512 * 1024);
+arena_declare_static(arena, 1024 * 1024);
 
 void entrypoint(){
     String source = read_file_whole("source.txt");
@@ -33,6 +33,8 @@ void entrypoint(){
 	}
 
 	node_format((IO_Writer){io_stdout()}, ast.root); putchar('\n');
+
+	fprintf(stderr, "peak arena usage: %.1g KiB (%.2g%%)", (f64)arena.peak_usage / 1024.0, 100.0 * (f64)arena.peak_usage / (f64)arena.capacity);
 }
 
 int main(){

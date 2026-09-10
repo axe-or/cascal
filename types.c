@@ -3,7 +3,7 @@
 #include "lang.h"
 
 static inline
-Type_ID type_arena_push_type(Type_Arena* ta, Type t);
+Type_ID type_arena_push_type(Type_Arena* ta, Type t, Type_ID next_hash);
 
 static inline
 u32 type_hash_mix_u32(u32 current_hash, u32 data){
@@ -92,7 +92,7 @@ Type_Arena type_arena_make(Type_Arena* ta, usize cap, Arena* arena){
     bool ok = type_id_hash_init(&ta->id_by_hash, cap, arena);
     ensure(ok, "failed to initialize type interning table");
 
-    Type_ID null_id = type_arena_push_type(ta, (Type){.primitive = Prim_None, .kind = Type_Primitive});
+    Type_ID null_id = type_arena_push_type(ta, (Type){.primitive = Prim_None, .kind = Type_Primitive}, (Type_ID){0});
     ensure(null_id.v == 0, "failed to init dummy type");
 
 	Type_Arena res = {
@@ -188,18 +188,25 @@ Type_ID type_arena_find(Type_Arena const* ta, u32 hash, Type t){
 }
 
 static inline
-Type_ID type_arena_push_type(Type_Arena* ta, Type t){
-	ensure_dbg(type_arena_find(ta, type_hash(&t), t).v == 0, "Type already present in arena");
+Type_ID type_arena_push_type(Type_Arena* ta, Type t, Type_ID next_hash_head){
+	u32 hash = type_hash(&t);
+	Type_ID first_id = type_arena_get_first_id(ta, hash);
+	ensure_dbg(type_arena_find(ta, hash, t).v == 0, "Type already present in arena");
+
     if(ta->cap >= ta->len){
         usize new_cap = max(16, ta->cap * 2);
         bool ok = type_arena_reserve(ta, new_cap);
         ensure(ok, "allocation error");
     }
 
-    Type_ID res = {ta->len};
+    Type_ID new_id = {ta->len};
     ta->types[ta->len] = t;
     ta->len += 1;
-    return res;
+
+   	ta->next_hash[new_id.v] = next_hash_head;           // new.next = head
+    type_id_hash_insert(&ta->id_by_hash, hash, new_id); // head = new
+
+    return new_id;
 }
 
 Type_ID type_intern(Type_Arena* ta, Type t){
@@ -208,7 +215,9 @@ Type_ID type_intern(Type_Arena* ta, Type t){
 	if(id.v){
 		return id;
 	}
-	return type_arena_push_type(ta, t);
+
+	Type_ID first =  type_arena_get_first_id(ta, h);
+	return type_arena_push_type(ta, t, first);
 }
 
 // Type type_from_node(Node* node, Arena* arena){

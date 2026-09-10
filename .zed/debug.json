@@ -7,10 +7,6 @@
     "label": "Build",
     "adapter": "CodeLLDB",
     "request": "launch",
-    // "preRunCommands": ["mingw32-make"],
     "program": "cascal"
-    // "build":{
-    //   "command": "mingw32-make",
-    // },
   }
 ]
