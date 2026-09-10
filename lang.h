@@ -460,6 +460,11 @@ typedef struct {
 	Arena* arena;
 } Type_Arena;
 
-Type* type_arena_get(Type_Arena const* ta, Type_ID id);
+Type_Arena type_arena_make(Type_Arena* ta, usize cap, Arena* arena);
 
+// IDs stay valid across growth. Returned pointers may be invalidated by interning.
+// Interned types and their arena-owned names must not be modified.
+Type const* type_arena_get(Type_Arena const* ta, Type_ID id);
+
+// Copies distinct names into the backing arena on first insertion.
 Type_ID type_intern(Type_Arena* ta, Type t);

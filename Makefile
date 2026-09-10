@@ -1,4 +1,5 @@
 CC := clang
+LUA := lua
 WFLAGS := -Wall -Wextra -Werror=uninitialized -Werror=return-type
 CFLAGS := -I. -std=c17 -fwrapv -fno-strict-aliasing -O0 -g
 #----------------
@@ -12,10 +13,13 @@ all: $(EXE)
 run: $(EXE)
 	./$(EXE)
 
-$(EXE): $(wildcard *.c *.h) Makefile
+gen/type_id_by_hash.c: hash_table.tmpl generate.lua templ.lua
+	$(LUA) generate.lua
+
+$(EXE): $(wildcard *.c *.h) gen/type_id_by_hash.c Makefile
 	$(CC) $(CFLAGS) -o $(EXE) main.c
 
-$(TEST_EXE): $(wildcard *.c *.h) Makefile
+$(TEST_EXE): $(wildcard *.c *.h) gen/type_id_by_hash.c Makefile
 	$(CC) $(CFLAGS) -o $(TEST_EXE) test_main.c
 
 test: $(TEST_EXE)

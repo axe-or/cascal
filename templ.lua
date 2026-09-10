@@ -9,7 +9,7 @@ function M.read_file(path)
 end
 
 function M.write_file(path, data)
-    local f = io.open(path, "w")
+    local f = io.open(path, "wb") -- Keep generated files LF-terminated on Windows too.
     assert(f, "failed to open file")
 	f:write(data)
 	print(path)

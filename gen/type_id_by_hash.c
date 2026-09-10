@@ -19,7 +19,7 @@ typedef struct {
 #define ht_valid_cap(n) (((n) & ((n) - 1)) == 0)
 
 #define ht_needs_growth(tbl) \
-	((tbl)->in_use >= (tbl)->slot_count) || ((tbl)->in_use >= (((tbl)->slot_count * 80) / 100))
+	((tbl)->in_use >= (tbl)->slot_count) || ((tbl)->in_use >= (((u64)(tbl)->slot_count * 80) / 100))
 
 static inline
 u32 type_id_hash_key_hash(u32 key){
@@ -33,8 +33,9 @@ bool type_id_hash_init(Type_ID_By_Hash* tbl, u32 cap, Arena* arena){
 	ensure(ht_valid_cap(cap), "invalid capacity, must be a power of 2");
 	mem_zero(tbl, sizeof(*tbl));
 	tbl->arena = arena;
-	
+
 	if(cap){
+		ensure((u64)cap * sizeof(Type_ID_By_Hash_Slot) <= SIZE_MAX, "capacity too large");
 		tbl->slots = arena_make(tbl->arena, Type_ID_By_Hash_Slot, cap);
 		if(!tbl->slots){ return false; }
 		tbl->slot_count = cap;
@@ -87,13 +88,27 @@ static inline
 Type_ID* type_id_hash_get(Type_ID_By_Hash const* tbl, u32 key){
 	u32 hash = type_id_hash_key_hash(key);
 	Type_ID_By_Hash_Slot* slot = type_id_hash_find(tbl, hash, key);
-	return &slot->value;
+	return slot ? &slot->value : NULL;
 }
 
 static inline
 void type_id_hash_insert(Type_ID_By_Hash* tbl, u32 key, Type_ID value){
+	// Updating a chain head must not allocate, even at the growth threshold.
+	Type_ID* existing = type_id_hash_get(tbl, key);
+	if(existing){
+		*existing = value;
+		return;
+	}
 	if(ht_needs_growth(tbl)){
-		panic("todo: growth");
+		ensure(tbl->slot_count <= UINT32_MAX / 2, "hash table exhausted");
+		u32 new_cap = max(16, tbl->slot_count * 2);
+		Type_ID_By_Hash grown;
+		ensure(type_id_hash_init(&grown, new_cap, tbl->arena), "allocation error");
+		for(u32 i = 0; i < tbl->slot_count; i += 1){
+			Type_ID_By_Hash_Slot* slot = &tbl->slots[i];
+			if(slot->hash) type_id_hash_insert(&grown, slot->key, slot->value);
+		}
+		*tbl = grown;
 	}
 
 	Type_ID_By_Hash_Slot incoming = {
@@ -170,4 +185,3 @@ bool type_id_hash_remove(Type_ID_By_Hash* tbl, u32 key){
 
 #undef ht_needs_growth
 #undef ht_valid_cap
-

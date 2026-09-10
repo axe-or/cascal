@@ -1,5 +1,4 @@
 #include "base.h"
-#include "gen/type_id_by_hash.c"
 #include "lang.h"
 
 static inline
@@ -82,6 +81,7 @@ bool type_arena_valid_capacity(usize n){
 
 Type_Arena type_arena_make(Type_Arena* ta, usize cap, Arena* arena){
 	ensure(type_arena_valid_capacity(cap), "capacity must be a power of 2");
+	ensure(cap <= UINT32_MAX && cap <= SIZE_MAX / sizeof(Type), "capacity too large");
 
 	Type* types = arena_make(arena, Type, cap);
 	ensure(types, "allocation error");
@@ -89,34 +89,18 @@ Type_Arena type_arena_make(Type_Arena* ta, usize cap, Arena* arena){
 	Type_ID* next_hash = arena_make(arena, Type_ID, cap);
 	ensure(next_hash, "allocation error");
 
-    bool ok = type_id_hash_init(&ta->id_by_hash, cap, arena);
-    ensure(ok, "failed to initialize type interning table");
-
-    Type_ID null_id = type_arena_push_type(ta, (Type){.primitive = Prim_None, .kind = Type_Primitive}, (Type_ID){0});
-    ensure(null_id.v == 0, "failed to init dummy type");
-
 	Type_Arena res = {
 		.types = types,
 		.next_hash = next_hash,
 		.cap = cap,
-		.len = 0,
+		.len = 1, // Slot zero is a sentinel, never an interned type.
 
 		.arena = arena,
 	};
-
+	ensure(type_id_hash_init(&res.id_by_hash, (u32)cap, arena), "failed to initialize type interning table");
+	*ta = res;
 	return res;
 }
-
-// Type_ID type_intern(Type_Arena* ta, Type* t){
-//     u32 hash = type_hash(t);
-//     Type_ID* tid = type_id_hash_get(ta->id_by_hash, hash);
-//     if(tid == NULL){
-//         type_id_hash_insert(&ta->id_by_hash, hash, );
-//     }
-//     else {
-
-//     }
-// }
 
 static inline
 bool type_arena_reserve(Type_Arena* ta, usize new_cap){
@@ -124,6 +108,7 @@ bool type_arena_reserve(Type_Arena* ta, usize new_cap){
         return true;
     }
     ensure(type_arena_valid_capacity(new_cap), "invalid capacity");
+    ensure(new_cap <= UINT32_MAX && new_cap <= SIZE_MAX / sizeof(Type), "capacity too large");
 
     Arena_Reg restore = arena_region(ta->arena);
 
@@ -155,7 +140,7 @@ fail:
     return false;
 }
 
-Type* type_arena_get(Type_Arena const* ta, Type_ID id){
+Type const* type_arena_get(Type_Arena const* ta, Type_ID id){
     if(!id.v || id.v >= ta->len) {
         return NULL;
     }
@@ -178,7 +163,7 @@ Type_ID type_arena_find(Type_Arena const* ta, u32 hash, Type t){
 		cur.v != 0;
 		cur = ta->next_hash[cur.v]
 	){
-		Type* candidate = type_arena_get(ta, cur);
+		Type const* candidate = type_arena_get(ta, cur);
 		if(type_eq(*candidate, t)){
 			return cur;
 		}
@@ -190,16 +175,23 @@ Type_ID type_arena_find(Type_Arena const* ta, u32 hash, Type t){
 static inline
 Type_ID type_arena_push_type(Type_Arena* ta, Type t, Type_ID next_hash_head){
 	u32 hash = type_hash(&t);
-	Type_ID first_id = type_arena_get_first_id(ta, hash);
 	ensure_dbg(type_arena_find(ta, hash, t).v == 0, "Type already present in arena");
 
-    if(ta->cap >= ta->len){
+    if(ta->len >= ta->cap){
+        ensure(ta->cap <= UINT32_MAX / 2 && ta->cap <= SIZE_MAX / 2, "type arena exhausted");
         usize new_cap = max(16, ta->cap * 2);
         bool ok = type_arena_reserve(ta, new_cap);
         ensure(ok, "allocation error");
     }
 
-    Type_ID new_id = {ta->len};
+    if(t.kind == Type_Distinct && t.distinct.name.len > 0){
+        char* name = arena_make(ta->arena, char, (usize)t.distinct.name.len);
+        ensure(name, "allocation error");
+        mem_copy(name, t.distinct.name.v, (usize)t.distinct.name.len);
+        t.distinct.name.v = name;
+    }
+
+    Type_ID new_id = {(u32)ta->len};
     ta->types[ta->len] = t;
     ta->len += 1;
 
