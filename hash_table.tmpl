@@ -90,7 +90,7 @@ static inline
 
 static inline
 void @insert(@Hash_Table* tbl, @K key, @V value){
-	// Updating a chain head must not allocate, even at the growth threshold.
+	// IMPORTANT: Updating a chain head must not allocate, even at the growth threshold.
 	@V* existing = @get(tbl, key);
 	if(existing){
 		*existing = value;

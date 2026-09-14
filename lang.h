@@ -462,9 +462,29 @@ typedef struct {
 
 Type_Arena type_arena_make(Type_Arena* ta, usize cap, Arena* arena);
 
-// IDs stay valid across growth. Returned pointers may be invalidated by interning.
-// Interned types and their arena-owned names must not be modified.
 Type const* type_arena_get(Type_Arena const* ta, Type_ID id);
 
-// Copies distinct names into the backing arena on first insertion.
 Type_ID type_intern(Type_Arena* ta, Type t);
+
+enum Symbol_Kind {
+    Sym_Unknown = 0,
+
+    Sym_Var,
+    Sym_Const,
+    Sym_Proc,
+    Sym_Type,
+
+    Symbol_Kind__COUNT,
+} ;
+
+typedef struct {
+    String name;
+    u8 kind;
+    Type* type; // TODO: Replace with type ID
+} Symbol;
+
+#include "gen/symbol_by_name.c"
+
+typedef struct {
+	Symbol_By_Name syms;
+} Symbol_Table;
