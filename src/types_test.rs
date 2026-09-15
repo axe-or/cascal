@@ -2,12 +2,9 @@ use super::*;
 
 #[test]
 fn interning_all_kinds_and_growth() {
-    let mut arena = type_arena_make(1);
-    let int = type_intern(&mut arena, Type::Primitive(PrimitiveType::Int));
-    assert_eq!(
-        int,
-        type_intern(&mut arena, Type::Primitive(PrimitiveType::Int))
-    );
+    let mut arena = TypeArena::with_capacity(1);
+    let int = arena.intern(Type::Primitive(PrimitiveType::Int));
+    assert_eq!(int, arena.intern(Type::Primitive(PrimitiveType::Int)));
     for ty in [
         Type::Pointer { inner: int },
         Type::Slice { inner: int },
@@ -20,26 +17,23 @@ fn interning_all_kinds_and_growth() {
             name: "Index".to_owned(),
         },
     ] {
-        let id = type_intern(&mut arena, ty.clone());
-        assert_eq!(id, type_intern(&mut arena, ty.clone()));
-        assert_eq!(type_arena_get(&arena, id), Some(&ty));
+        let id = arena.intern(ty.clone());
+        assert_eq!(id, arena.intern(ty.clone()));
+        assert_eq!(arena.get(id), Some(&ty));
     }
     let mut previous = int;
     for _ in 0..10000 {
-        previous = type_intern(&mut arena, Type::Pointer { inner: previous });
+        previous = arena.intern(Type::Pointer { inner: previous });
     }
-    assert_eq!(
-        type_arena_get(&arena, int),
-        Some(&Type::Primitive(PrimitiveType::Int))
-    );
+    assert_eq!(arena.get(int), Some(&Type::Primitive(PrimitiveType::Int)));
     assert_eq!(size_of::<TypeID>(), 4);
     assert_eq!(size_of::<Option<TypeID>>(), 4);
 }
 
 #[test]
 fn collisions_are_resolved_by_equality() {
-    let mut arena = type_arena_make(1);
-    let int = type_intern(&mut arena, Type::Primitive(PrimitiveType::Int));
+    let mut arena = TypeArena::with_capacity(1);
+    let int = arena.intern(Type::Primitive(PrimitiveType::Int));
     // Find a real 32-bit hash collision rather than replace the hashing implementation.
     let mut seen = HashMap::new();
     let (a, b) = (0..300_000)
@@ -48,30 +42,27 @@ fn collisions_are_resolved_by_equality() {
                 inner: int,
                 name: format!("name{n}"),
             };
-            let h = type_hash(&ty);
+            let h = ty.hash();
             seen.insert(h, ty.clone()).map(|other| (other, ty))
         })
         .expect("collision in deterministic fixture");
     assert_ne!(a, b);
-    let a_id = type_intern(&mut arena, a.clone());
-    let b_id = type_intern(&mut arena, b.clone());
+    let a_id = arena.intern(a.clone());
+    let b_id = arena.intern(b.clone());
     assert_ne!(a_id, b_id);
-    assert_eq!(type_intern(&mut arena, a), a_id);
-    assert_eq!(type_intern(&mut arena, b), b_id);
+    assert_eq!(arena.intern(a), a_id);
+    assert_eq!(arena.intern(b), b_id);
 }
 
 #[test]
 fn names_are_owned_and_lengths_matter() {
     let mut arena = TypeArena::default();
-    let int = type_intern(&mut arena, Type::Primitive(PrimitiveType::Int));
+    let int = arena.intern(Type::Primitive(PrimitiveType::Int));
     let name = String::from("Index");
-    let id = type_intern(
-        &mut arena,
-        Type::Distinct {
-            inner: int,
-            name: name.clone(),
-        },
-    );
+    let id = arena.intern(Type::Distinct {
+        inner: int,
+        name: name.clone(),
+    });
     drop(name);
     assert_eq!(
         arena.types[id],
@@ -80,12 +71,9 @@ fn names_are_owned_and_lengths_matter() {
             name: "Index".into()
         }
     );
-    let other = type_intern(
-        &mut arena,
-        Type::Distinct {
-            inner: int,
-            name: "Index2".into(),
-        },
-    );
+    let other = arena.intern(Type::Distinct {
+        inner: int,
+        name: "Index2".into(),
+    });
     assert_ne!(id, other);
 }

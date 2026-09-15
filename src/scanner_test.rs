@@ -18,7 +18,7 @@ fn real_rounding_and_extremes() {
         ("1e-310", 1e-310),
         ("0.0e99999", 0.0),
     ] {
-        let result = scan_next_token(&mut Scanner::new(text.as_bytes()));
+        let result = Scanner::new(text.as_bytes()).next_token();
         assert_eq!(result.error, None, "{text}");
         assert_eq!(
             result.token.value_real.to_bits(),
@@ -28,7 +28,8 @@ fn real_rounding_and_extremes() {
     }
     for text in ["0x0.ep-9999", "0x1p-1075", "0x1p1024", "1e-9999"] {
         assert_eq!(
-            scan_next_token(&mut Scanner::new(text.as_bytes()))
+            Scanner::new(text.as_bytes())
+                .next_token()
                 .error
                 .unwrap()
                 .kind,
@@ -42,12 +43,12 @@ fn real_rounding_and_extremes() {
 fn numbers_and_suffix_boundaries() {
     let mut sc = Scanner::new(b"0b101 0o17 0xff 1_000 1.25 2e3 0x1.8p2 1.foo 2e+");
     for expected in [5, 15, 255, 1000] {
-        let r = scan_next_token(&mut sc);
+        let r = sc.next_token();
         assert_eq!(r.error, None);
         assert_eq!(r.token.value_int, expected);
     }
     for expected in [1.25, 2000.0, 6.0] {
-        let r = scan_next_token(&mut sc);
+        let r = sc.next_token();
         assert_eq!(r.error, None);
         assert_eq!(r.token.kind, TokenType::Real);
         assert_eq!(r.token.value_real, expected);
@@ -61,14 +62,14 @@ fn numbers_and_suffix_boundaries() {
         TokenType::Plus,
         TokenType::EndOfFile,
     ] {
-        assert_eq!(scan_next_token(&mut sc).token.kind, expected);
+        assert_eq!(sc.next_token().token.kind, expected);
     }
 }
 
 #[test]
 fn comments_keywords_and_peeking() {
     let mut sc = Scanner::new(b"/* outer /* inner */ */ // hi\r\nproc true and struct variant");
-    assert_eq!(scan_peek_token(&sc).token.kind, TokenType::Proc);
+    assert_eq!(sc.peek_token().token.kind, TokenType::Proc);
     assert_eq!(sc.current, 0);
     for kind in [
         TokenType::Proc,
@@ -78,7 +79,7 @@ fn comments_keywords_and_peeking() {
         TokenType::Variant,
         TokenType::EndOfFile,
     ] {
-        let r = scan_next_token(&mut sc);
+        let r = sc.next_token();
         assert_eq!(r.error, None);
         assert_eq!(r.token.kind, kind);
     }
@@ -97,12 +98,12 @@ fn errors_and_progress() {
         ("1e9999", ErrorType::InvalidNumber, 6),
     ] {
         let mut sc = Scanner::new(text.as_bytes());
-        let e = scan_next_token(&mut sc).error.unwrap();
+        let e = sc.next_token().error.unwrap();
         assert_eq!((e.kind, e.offset), (kind, offset), "{text}");
         assert!(sc.current > 0);
     }
     let mut sc = Scanner::new(b"\xff\0");
-    assert!(scan_next_token(&mut sc).error.is_some());
-    assert!(scan_next_token(&mut sc).error.is_some());
-    assert_eq!(scan_next_token(&mut sc).token.kind, TokenType::EndOfFile);
+    assert!(sc.next_token().error.is_some());
+    assert!(sc.next_token().error.is_some());
+    assert_eq!(sc.next_token().token.kind, TokenType::EndOfFile);
 }

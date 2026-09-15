@@ -25,20 +25,22 @@ pub struct SymbolTable {
     pub syms: HashMap<String, SymbolID>,
 }
 
-pub fn symbol_table_get<'a>(table: &'a SymbolTable, name: &str) -> Option<&'a Symbol> {
-    table.syms.get(name).and_then(|id| table.symbols.get(*id))
-}
-
-/// Inserting an existing name replaces its definition while retaining its ID.
-pub fn symbol_table_insert(table: &mut SymbolTable, symbol: Symbol) -> SymbolID {
-    if let Some(&id) = table.syms.get(&symbol.name) {
-        table.symbols[id] = symbol;
-        return id;
+impl SymbolTable {
+    pub fn get(&self, name: &str) -> Option<&Symbol> {
+        self.syms.get(name).and_then(|id| self.symbols.get(*id))
     }
-    let name = symbol.name.clone();
-    let id = table.symbols.alloc(symbol);
-    table.syms.insert(name, id);
-    id
+
+    /// Inserting an existing name replaces its definition while retaining its ID.
+    pub fn insert(&mut self, symbol: Symbol) -> SymbolID {
+        if let Some(&id) = self.syms.get(&symbol.name) {
+            self.symbols[id] = symbol;
+            return id;
+        }
+        let name = symbol.name.clone();
+        let id = self.symbols.alloc(symbol);
+        self.syms.insert(name, id);
+        id
+    }
 }
 
 #[cfg(test)]

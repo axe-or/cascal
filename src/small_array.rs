@@ -11,59 +11,63 @@ pub enum SmallArray {
 
 impl Default for SmallArray {
     fn default() -> Self {
-        sm_arr_init()
+        Self::new()
     }
 }
 
-pub fn sm_arr_init() -> SmallArray {
-    SmallArray::Inline {
-        data: [0; INLINE_COUNT],
-        len: 0,
+impl SmallArray {
+    pub fn new() -> Self {
+        Self::Inline {
+            data: [0; INLINE_COUNT],
+            len: 0,
+        }
     }
-}
 
-pub fn sm_arr_slice(arr: &SmallArray) -> &[i32] {
-    match arr {
-        SmallArray::Inline { data, len } => &data[..*len],
-        SmallArray::Heap(data) => data,
+    pub fn as_slice(&self) -> &[i32] {
+        match self {
+            Self::Inline { data, len } => &data[..*len],
+            Self::Heap(data) => data,
+        }
     }
-}
 
-pub fn sm_arr_reserve(
-    arr: &mut SmallArray,
-    new_cap: usize,
-) -> Result<(), std::collections::TryReserveError> {
-    match arr {
-        SmallArray::Inline { data, len } if new_cap > INLINE_COUNT => {
-            let mut heap = Vec::new();
-            heap.try_reserve(new_cap)?;
-            heap.extend_from_slice(&data[..*len]);
-            *arr = SmallArray::Heap(heap);
+    /// Ensures room for at least `new_cap` elements in total.
+    pub fn try_reserve_capacity(
+        &mut self,
+        new_cap: usize,
+    ) -> Result<(), std::collections::TryReserveError> {
+        match self {
+            Self::Inline { data, len } if new_cap > INLINE_COUNT => {
+                let mut heap = Vec::new();
+                heap.try_reserve(new_cap)?;
+                heap.extend_from_slice(&data[..*len]);
+                *self = Self::Heap(heap);
+            }
+            Self::Heap(data) if new_cap > data.capacity() => {
+                data.try_reserve(new_cap - data.len())?;
+            }
+            _ => {}
         }
-        SmallArray::Heap(data) if new_cap > data.capacity() => {
-            data.try_reserve(new_cap - data.len())?;
-        }
-        _ => {}
+        Ok(())
     }
-    Ok(())
-}
 
-pub fn sm_arr_push(arr: &mut SmallArray, value: i32) {
-    if matches!(
-        arr,
-        SmallArray::Inline {
-            len: INLINE_COUNT,
-            ..
+    pub fn push(&mut self, value: i32) {
+        if matches!(
+            self,
+            Self::Inline {
+                len: INLINE_COUNT,
+                ..
+            }
+        ) {
+            self.try_reserve_capacity(16)
+                .expect("small array exhausted");
         }
-    ) {
-        sm_arr_reserve(arr, 16).expect("small array exhausted");
-    }
-    match arr {
-        SmallArray::Inline { data, len } => {
-            data[*len] = value;
-            *len += 1;
+        match self {
+            Self::Inline { data, len } => {
+                data[*len] = value;
+                *len += 1;
+            }
+            Self::Heap(data) => data.push(value),
         }
-        SmallArray::Heap(data) => data.push(value),
     }
 }
 

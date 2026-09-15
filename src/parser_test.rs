@@ -1,8 +1,9 @@
 use super::*;
+use std::io;
 
 fn formatted(ast: &AST, id: NodeID) -> String {
     let mut output = Vec::new();
-    node_format(&mut output, ast, id).unwrap();
+    ast.format_node(&mut output, id).unwrap();
     String::from_utf8(output).unwrap()
 }
 
@@ -20,10 +21,10 @@ fn expression_precedence_and_postfix() {
             "\"line\\n\\\"quoted\\\"\\\\😀\"",
         ),
     ] {
-        let mut p = parser_make(source.as_bytes());
-        let id = parse_expression(&mut p).unwrap();
+        let mut p = Parser::new(source.as_bytes());
+        let id = p.parse_expression().unwrap();
         assert_eq!(formatted(&p.ast, id), expected);
-        assert_eq!(parser_peek(&p).unwrap().kind, TokenType::EndOfFile);
+        assert_eq!(p.peek().unwrap().kind, TokenType::EndOfFile);
         if let NodeValue::Binary { left, right, .. } = p.ast.arena[id].value {
             assert_eq!(p.ast.arena[left].parent, Some(id));
             assert_eq!(p.ast.arena[right].parent, Some(id));
@@ -33,11 +34,11 @@ fn expression_precedence_and_postfix() {
 
 #[test]
 fn compound_types_and_bounds() {
-    let mut p = parser_make(b"[32][]^Item");
-    let id = parse_type(&mut p).unwrap();
+    let mut p = Parser::new(b"[32][]^Item");
+    let id = p.parse_type().unwrap();
     assert_eq!(formatted(&p.ast, id), "[32][]^Item");
-    let mut p = parser_make(b"[2147483648]Int");
-    let error = parse_type(&mut p).unwrap_err();
+    let mut p = Parser::new(b"[2147483648]Int");
+    let error = p.parse_type().unwrap_err();
     assert_eq!((error.kind, error.offset), (ErrorType::InvalidNumber, 1));
     assert_eq!(size_of::<Option<NodeID>>(), 4);
 }
@@ -85,7 +86,7 @@ fn writer_errors_propagate() {
     let ast = parse(b"proc p(){}").unwrap();
     let mut output = [0u8; 3];
     assert_eq!(
-        node_format(&mut output.as_mut_slice(), &ast, ast.root.unwrap())
+        ast.format_node(&mut output.as_mut_slice(), ast.root.unwrap())
             .unwrap_err()
             .kind(),
         io::ErrorKind::WriteZero
@@ -102,6 +103,6 @@ fn arena_growth_and_lists() {
     let NodeValue::Block { statements } = ast.arena[body].value else {
         panic!()
     };
-    assert_eq!(node_list_cardinality(&ast, statements), 5000);
+    assert_eq!(ast.list_len(statements), 5000);
     assert_eq!(ast.arena[statements.last.unwrap()].parent, Some(body));
 }
