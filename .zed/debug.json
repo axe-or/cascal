@@ -7,6 +7,6 @@
     "label": "Build",
     "adapter": "CodeLLDB",
     "request": "launch",
-    "program": "cascal"
+    "program": "target/debug/cascal.exe"
   }
 ]

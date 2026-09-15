@@ -1,7 +1,7 @@
 [
 	{
 		"label": "Build",
-		"command": "mingw32-make run",
+		"command": "cargo run --offline",
 		"reveal": "no_focus",
 		"hide": "never",
 		"show_command": false,
