@@ -17,6 +17,7 @@ pub struct ScannerResult {
 pub fn is_identifier_start(c: char) -> bool {
     c.is_ascii_alphabetic() || c == '_'
 }
+
 pub fn is_identifier_continue(c: char) -> bool {
     is_identifier_start(c) || c.is_ascii_digit()
 }
@@ -29,91 +30,9 @@ pub fn base_of(c: char) -> Option<u32> {
         _ => None,
     }
 }
+
 pub fn digit_of(c: char) -> Option<u32> {
     c.to_digit(16)
-}
-
-/// Convert a hexadecimal float without libc or a numeric parsing dependency.
-pub fn parse_hex_real(text: &str) -> Option<f64> {
-    let body = text
-        .strip_prefix("0x")
-        .or_else(|| text.strip_prefix("0X"))?;
-    let (mantissa, exponent_text) = body.split_once(['p', 'P'])?;
-    let exponent_digits = exponent_text.trim_start_matches(['+', '-']);
-    if exponent_digits.is_empty() || !exponent_digits.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    let explicit_exponent: i64 = exponent_text.parse().unwrap_or_else(|_| {
-        if exponent_text.starts_with('-') {
-            i64::MIN
-        } else {
-            i64::MAX
-        }
-    });
-    let integer_digits = mantissa.find('.').unwrap_or(mantissa.len()) as i64;
-    let mut first = None;
-    for (digits, c) in mantissa.chars().filter(|&c| c != '.').enumerate() {
-        let digit = c.to_digit(16)?;
-        if digit != 0 && first.is_none() {
-            first = Some(
-                (integer_digits - digits as i64 - 1) * 4 + (31 - digit.leading_zeros()) as i64,
-            );
-        }
-    }
-    let Some(highest_bit) = first else {
-        return Some(0.0);
-    };
-    let mut exponent = explicit_exponent.saturating_add(highest_bit);
-    if exponent > 1023 {
-        return Some(f64::INFINITY);
-    }
-    if exponent < -1075 {
-        return Some(0.0);
-    }
-    // Subnormal values retain fewer significant bits; round only once.
-    let precision = (exponent + 1075).min(53) as usize;
-    let mut significant = 0u64;
-    let mut count = 0;
-    let mut started = false;
-    let mut guard = false;
-    let mut sticky = false;
-    for c in mantissa.chars().filter(|&c| c != '.') {
-        let digit = c.to_digit(16)?;
-        for bit in (0..4).rev() {
-            let one = digit & (1 << bit) != 0;
-            if !started && !one {
-                continue;
-            }
-            started = true;
-            if count < precision {
-                significant = (significant << 1) | u64::from(one);
-            } else if count == precision {
-                guard = one;
-            } else {
-                sticky |= one;
-            }
-            count += 1;
-        }
-    }
-    if count < precision {
-        significant <<= precision - count;
-    }
-    if guard && (sticky || significant & 1 != 0) {
-        significant += 1;
-    }
-    if precision < 53 {
-        return Some(f64::from_bits(significant));
-    }
-    if significant == 1 << 53 {
-        significant >>= 1;
-        exponent += 1;
-    }
-    if exponent > 1023 {
-        return Some(f64::INFINITY);
-    }
-    Some(f64::from_bits(
-        ((exponent + 1023) as u64) << 52 | (significant & ((1 << 52) - 1)),
-    ))
 }
 
 impl<'a> Scanner<'a> {
@@ -207,7 +126,7 @@ impl<'a> Scanner<'a> {
         Err(Error::new(ErrorType::UnclosedComment, self.current))
     }
 
-    pub fn scan_digit_sequence(&mut self, base: u32) -> bool {
+    pub fn scan_digit_sequence(&mut self) -> bool {
         let mut has_digit = false;
         loop {
             let c = self.peek(0);
@@ -215,7 +134,7 @@ impl<'a> Scanner<'a> {
                 self.advance();
                 continue;
             }
-            if digit_of(c).is_none_or(|d| d >= base) {
+            if !c.is_ascii_digit() {
                 break;
             }
             has_digit = true;
@@ -224,8 +143,8 @@ impl<'a> Scanner<'a> {
         has_digit
     }
 
-    pub fn scan_exponent(&mut self, lower: char, upper: char) -> bool {
-        if self.peek(0) != lower && self.peek(0) != upper {
+    pub fn scan_exponent(&mut self) -> bool {
+        if !matches!(self.peek(0), 'e' | 'E') {
             return false;
         }
         let mut parsed = *self;
@@ -233,28 +152,24 @@ impl<'a> Scanner<'a> {
         if matches!(parsed.peek(0), '+' | '-') {
             parsed.advance();
         }
-        if !parsed.scan_digit_sequence(10) {
+        if !parsed.scan_digit_sequence() {
             return false;
         }
         *self = parsed;
         true
     }
 
-    pub fn scan_real_suffix(&mut self, base: u32) -> bool {
+    pub fn scan_real_suffix(&mut self) -> bool {
         let mut parsed = *self;
         let mut fraction = false;
         if parsed.take_if('.') {
-            fraction = parsed.scan_digit_sequence(base);
+            fraction = parsed.scan_digit_sequence();
             if !fraction {
                 parsed = *self;
             }
         }
-        let exponent = if base == 16 {
-            parsed.scan_exponent('p', 'P')
-        } else {
-            parsed.scan_exponent('e', 'E')
-        };
-        if (base == 16 || !fraction) && !exponent {
+        let exponent = parsed.scan_exponent();
+        if !fraction && !exponent {
             return false;
         }
         *self = parsed;
@@ -267,20 +182,10 @@ impl<'a> Scanner<'a> {
             .filter(|&&b| b != b'_')
             .map(|&b| b as char)
             .collect();
-        let value = if text.starts_with("0x") || text.starts_with("0X") {
-            parse_hex_real(&text)
-        } else {
-            text.parse::<f64>().ok()
-        };
+        let value = text.parse::<f64>().ok();
         let mut result = ScannerResult::new(TokenType::Real, start, self.current);
-        let significant = if text.starts_with("0x") || text.starts_with("0X") {
-            text[2..].split(['p', 'P']).next().unwrap_or("")
-        } else {
-            text.split(['e', 'E']).next().unwrap_or("")
-        };
-        let nonzero = significant
-            .chars()
-            .any(|c| matches!(c, '1'..='9' | 'a'..='f' | 'A'..='F'));
+        let significant = text.split(['e', 'E']).next().unwrap_or("");
+        let nonzero = significant.chars().any(|c| matches!(c, '1'..='9'));
         match value {
             Some(v) if v.is_finite() && !(nonzero && v == 0.0) => result.token.value_real = v,
             _ => result.error = Some(Error::new(ErrorType::InvalidNumber, self.current)),
@@ -291,14 +196,12 @@ impl<'a> Scanner<'a> {
     pub fn scan_integer(&mut self, start: usize, first: char) -> ScannerResult {
         let mut base = 10;
         let mut has_body = true;
-        let mut has_digit = true;
         let mut value = first.to_digit(10).unwrap() as i64;
         let mut error = None;
         if first == '0' {
             if let Some(b) = base_of(self.peek(0)) {
                 base = b;
                 has_body = false;
-                has_digit = false;
                 value = 0;
                 self.advance();
             }
@@ -314,7 +217,6 @@ impl<'a> Scanner<'a> {
                 break;
             };
             has_body = true;
-            has_digit = true;
             let offset = self.current;
             self.advance();
             if error.is_none() {
@@ -327,7 +229,7 @@ impl<'a> Scanner<'a> {
                 }
             }
         }
-        if (base == 10 || base == 16) && has_digit && self.scan_real_suffix(base) {
+        if base == 10 && self.scan_real_suffix() {
             return self.scan_real(start);
         }
         if !has_body {

@@ -6,6 +6,7 @@ pub struct Parser<'a> {
     pub scanner: Scanner<'a>,
     pub ast: AST,
 }
+
 pub type ParserResult = Result<NodeID, Error>;
 
 pub fn parser_unexpected(got: Token, expected: TokenType) -> Error {
@@ -23,6 +24,7 @@ pub fn prefix_binding_power(op: TokenType) -> Option<u8> {
         _ => None,
     }
 }
+
 pub fn infix_binding_power(op: TokenType) -> Option<(u8, u8)> {
     use TokenType::*;
     let left = match op {
@@ -37,6 +39,7 @@ pub fn infix_binding_power(op: TokenType) -> Option<(u8, u8)> {
     };
     Some((left, left + 1))
 }
+
 pub fn unescape_sequences_in_string(s: &str) -> String {
     let mut chars = s.chars();
     let mut result = String::with_capacity(s.len());
@@ -49,6 +52,7 @@ pub fn unescape_sequences_in_string(s: &str) -> String {
     }
     result
 }
+
 pub fn parse(source: &[u8]) -> Result<AST, Error> {
     let mut parser = Parser::new(source);
     let mut definitions = NodeList::default();

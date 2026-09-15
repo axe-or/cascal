@@ -3,30 +3,25 @@ use super::*;
 #[test]
 fn real_rounding_and_extremes() {
     for (text, expected) in [
-        ("0x1.00000000000008p0", 1.0),
-        (
-            "0x1.00000000000008001p0",
-            f64::from_bits(1.0f64.to_bits() + 1),
-        ),
-        ("0x1.00000000000018p0", f64::from_bits(1.0f64.to_bits() + 2)),
-        ("0x1p-1074", f64::from_bits(1)),
-        ("0x1.8p-1074", f64::from_bits(2)),
-        ("0x1.00000000001p-1075", f64::from_bits(1)),
-        ("0x0.fffffffffffff8p-1022", f64::MIN_POSITIVE),
-        ("0x1p-1022", f64::MIN_POSITIVE),
-        ("0x1.fffffffffffffp1023", f64::MAX),
+        ("1.0000000000000001", 1.0),
+        ("1.0000000000000002", f64::from_bits(1.0f64.to_bits() + 1)),
+        ("5e-324", f64::from_bits(1)),
+        ("2.2250738585072014e-308", f64::MIN_POSITIVE),
+        ("1.7976931348623157e308", f64::MAX),
         ("1e-310", 1e-310),
         ("0.0e99999", 0.0),
     ] {
         let result = Scanner::new(text.as_bytes()).next_token();
         assert_eq!(result.error, None, "{text}");
+        assert_eq!(result.token.kind, TokenType::Real, "{text}");
+        assert_eq!(result.token.end, text.len(), "{text}");
         assert_eq!(
             result.token.value_real.to_bits(),
             expected.to_bits(),
             "{text}"
         );
     }
-    for text in ["0x0.ep-9999", "0x1p-1075", "0x1p1024", "1e-9999"] {
+    for text in ["1e-324", "1e309", "1e-9999"] {
         assert_eq!(
             Scanner::new(text.as_bytes())
                 .next_token()
@@ -41,13 +36,14 @@ fn real_rounding_and_extremes() {
 
 #[test]
 fn numbers_and_suffix_boundaries() {
-    let mut sc = Scanner::new(b"0b101 0o17 0xff 1_000 1.25 2e3 0x1.8p2 1.foo 2e+");
+    let mut sc = Scanner::new(b"0b101 0o17 0xff 1_000 1.25 2e3 1_234.5_6 1.2_5E+1_0 1.foo 2e+");
     for expected in [5, 15, 255, 1000] {
         let r = sc.next_token();
         assert_eq!(r.error, None);
+        assert_eq!(r.token.kind, TokenType::Integer);
         assert_eq!(r.token.value_int, expected);
     }
-    for expected in [1.25, 2000.0, 6.0] {
+    for expected in [1.25, 2000.0, 1234.56, 1.25e10] {
         let r = sc.next_token();
         assert_eq!(r.error, None);
         assert_eq!(r.token.kind, TokenType::Real);
@@ -63,6 +59,17 @@ fn numbers_and_suffix_boundaries() {
         TokenType::EndOfFile,
     ] {
         assert_eq!(sc.next_token().token.kind, expected);
+    }
+}
+
+#[test]
+fn hexadecimal_numbers_stay_integers() {
+    for text in ["0x1p2", "0x1.8p2", "0X1.AP+2"] {
+        let result = Scanner::new(text.as_bytes()).next_token();
+        assert_eq!(result.error, None, "{text}");
+        assert_eq!(result.token.kind, TokenType::Integer, "{text}");
+        assert_eq!(result.token.value_int, 1, "{text}");
+        assert_eq!(result.token.end, 3, "{text}");
     }
 }
 

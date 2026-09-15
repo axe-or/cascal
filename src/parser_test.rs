@@ -82,6 +82,14 @@ fn rejects_bad_programs() {
 }
 
 #[test]
+fn hexadecimal_floats_are_not_supported() {
+    for literal in ["0x1p2", "0x1.8p2", "0X1.8P+2"] {
+        let source = format!("proc p() {{ return {literal}; }}");
+        assert!(parse(source.as_bytes()).is_err(), "{literal}");
+    }
+}
+
+#[test]
 fn writer_errors_propagate() {
     let ast = parse(b"proc p(){}").unwrap();
     let mut output = [0u8; 3];
