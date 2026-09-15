@@ -24,7 +24,7 @@ macro_rules! arena_id {
 /// Rust drops all values together with the arena; no individual removal is exposed.
 #[derive(Debug)]
 pub struct Arena<T, ID> {
-    pub values: Vec<T>,
+    pub values: crate::array::Array<T>,
     pub marker: std::marker::PhantomData<ID>,
 }
 
