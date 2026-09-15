@@ -3,3 +3,4 @@ pub mod lang;
 pub mod errors;
 pub mod scanner;
 pub mod parser;
+pub mod types;
