@@ -1,15 +1,66 @@
 use super::*;
 
 #[test]
+fn real_rounding_and_extremes() {
+    for (text, expected) in [
+        ("0x1.00000000000008p0", 1.0),
+        (
+            "0x1.00000000000008001p0",
+            f64::from_bits(1.0f64.to_bits() + 1),
+        ),
+        ("0x1.00000000000018p0", f64::from_bits(1.0f64.to_bits() + 2)),
+        ("0x1p-1074", f64::from_bits(1)),
+        ("0x1.8p-1074", f64::from_bits(2)),
+        ("0x1.00000000001p-1075", f64::from_bits(1)),
+        ("0x0.fffffffffffff8p-1022", f64::MIN_POSITIVE),
+        ("0x1p-1022", f64::MIN_POSITIVE),
+        ("0x1.fffffffffffffp1023", f64::MAX),
+        ("1e-310", 1e-310),
+        ("0.0e99999", 0.0),
+    ] {
+        let result = scan_next_token(&mut Scanner::new(text.as_bytes()));
+        assert_eq!(result.error, None, "{text}");
+        assert_eq!(
+            result.token.value_real.to_bits(),
+            expected.to_bits(),
+            "{text}"
+        );
+    }
+    for text in ["0x0.ep-9999", "0x1p-1075", "0x1p1024", "1e-9999"] {
+        assert_eq!(
+            scan_next_token(&mut Scanner::new(text.as_bytes()))
+                .error
+                .unwrap()
+                .kind,
+            ErrorType::InvalidNumber,
+            "{text}"
+        );
+    }
+}
+
+#[test]
 fn numbers_and_suffix_boundaries() {
     let mut sc = Scanner::new(b"0b101 0o17 0xff 1_000 1.25 2e3 0x1.8p2 1.foo 2e+");
     for expected in [5, 15, 255, 1000] {
-        let r = scan_next_token(&mut sc); assert_eq!(r.error, None); assert_eq!(r.token.value_int, expected);
+        let r = scan_next_token(&mut sc);
+        assert_eq!(r.error, None);
+        assert_eq!(r.token.value_int, expected);
     }
     for expected in [1.25, 2000.0, 6.0] {
-        let r = scan_next_token(&mut sc); assert_eq!(r.error, None); assert_eq!(r.token.kind, TokenType::Real); assert_eq!(r.token.value_real, expected);
+        let r = scan_next_token(&mut sc);
+        assert_eq!(r.error, None);
+        assert_eq!(r.token.kind, TokenType::Real);
+        assert_eq!(r.token.value_real, expected);
     }
-    for expected in [TokenType::Integer, TokenType::Dot, TokenType::Identifier, TokenType::Integer, TokenType::Identifier, TokenType::Plus, TokenType::EndOfFile] {
+    for expected in [
+        TokenType::Integer,
+        TokenType::Dot,
+        TokenType::Identifier,
+        TokenType::Integer,
+        TokenType::Identifier,
+        TokenType::Plus,
+        TokenType::EndOfFile,
+    ] {
         assert_eq!(scan_next_token(&mut sc).token.kind, expected);
     }
 }
@@ -19,8 +70,17 @@ fn comments_keywords_and_peeking() {
     let mut sc = Scanner::new(b"/* outer /* inner */ */ // hi\r\nproc true and struct variant");
     assert_eq!(scan_peek_token(&sc).token.kind, TokenType::Proc);
     assert_eq!(sc.current, 0);
-    for kind in [TokenType::Proc, TokenType::True, TokenType::LogicAnd, TokenType::Record, TokenType::Variant, TokenType::EndOfFile] {
-        let r = scan_next_token(&mut sc); assert_eq!(r.error, None); assert_eq!(r.token.kind, kind);
+    for kind in [
+        TokenType::Proc,
+        TokenType::True,
+        TokenType::LogicAnd,
+        TokenType::Record,
+        TokenType::Variant,
+        TokenType::EndOfFile,
+    ] {
+        let r = scan_next_token(&mut sc);
+        assert_eq!(r.error, None);
+        assert_eq!(r.token.kind, kind);
     }
 }
 
