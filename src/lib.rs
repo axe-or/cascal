@@ -1,5 +1,6 @@
 pub mod base;
 pub mod array;
+pub mod small_array;
 pub mod lang;
 pub mod errors;
 pub mod scanner;
