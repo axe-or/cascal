@@ -4,3 +4,4 @@ pub mod errors;
 pub mod scanner;
 pub mod parser;
 pub mod types;
+pub mod symbol_table;
