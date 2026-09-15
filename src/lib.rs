@@ -1,9 +1,10 @@
-pub mod base;
 pub mod array;
-pub mod small_array;
-pub mod lang;
+pub mod arith;
+pub mod base;
 pub mod errors;
-pub mod scanner;
+pub mod lang;
 pub mod parser;
-pub mod types;
+pub mod scanner;
+pub mod small_array;
 pub mod symbol_table;
+pub mod types;
