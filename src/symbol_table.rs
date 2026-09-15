@@ -5,10 +5,19 @@ use std::collections::HashMap;
 crate::arena_id!(SymbolID);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SymbolKind { Var, Const, Proc, Type }
+pub enum SymbolKind {
+    Var,
+    Const,
+    Proc,
+    Type,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Symbol { pub name: String, pub kind: SymbolKind, pub ty: Option<TypeID> }
+pub struct Symbol {
+    pub name: String,
+    pub kind: SymbolKind,
+    pub ty: Option<TypeID>,
+}
 
 #[derive(Debug, Default)]
 pub struct SymbolTable {

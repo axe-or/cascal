@@ -1,5 +1,5 @@
-pub mod array;
 pub mod arith;
+pub mod array;
 pub mod base;
 pub mod errors;
 pub mod lang;

@@ -5,7 +5,9 @@ arena_id!(TestID);
 fn arena_ids_survive_growth() {
     let mut arena = Arena::<_, TestID>::with_capacity(1);
     let first = arena.alloc(String::from("first"));
-    for _ in 0..4096 { arena.alloc(String::from("later")); }
+    for _ in 0..4096 {
+        arena.alloc(String::from("later"));
+    }
     assert_eq!(arena[first], "first");
     arena[first].push('!');
     assert_eq!(arena[first], "first!");
@@ -22,7 +24,13 @@ fn hashes_match_murmur3_vectors() {
 
 #[test]
 fn decode_valid_and_invalid_utf8() {
-    assert_eq!(rune_decode("😀".as_bytes()), RuneDecoded { codepoint: '😀', size: 4 });
+    assert_eq!(
+        rune_decode("😀".as_bytes()),
+        RuneDecoded {
+            codepoint: '😀',
+            size: 4
+        }
+    );
     assert_eq!(rune_decode(&[0xc0, 0x80]).size, 1);
     assert_eq!(rune_decode(&[0xed, 0xa0, 0x80]).codepoint, '\u{fffd}');
     assert_eq!(rune_decode(&[]).size, 0);

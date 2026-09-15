@@ -15,7 +15,10 @@ fn expression_precedence_and_postfix() {
         ("-value.field * (2 + 3)", "(* (- (. value field)) (+ 2 3))"),
         ("not false or true", "(or (not false) true)"),
         ("items(1, value,)[2]", "([] (call items 1 value) 2)"),
-        ("\"line\\n\\\"quoted\\\"\\\\😀\"", "\"line\\n\\\"quoted\\\"\\\\😀\""),
+        (
+            "\"line\\n\\\"quoted\\\"\\\\😀\"",
+            "\"line\\n\\\"quoted\\\"\\\\😀\"",
+        ),
     ] {
         let mut p = parser_make(source.as_bytes());
         let id = parse_expression(&mut p).unwrap();
@@ -60,7 +63,10 @@ fn complete_program() {
 fn rejects_bad_programs() {
     for (source, kind) in [
         ("var value: int = 1;", ErrorType::UnexpectedToken),
-        ("proc p(){ var a,b: int = 1; }", ErrorType::MismatchedListCardinality),
+        (
+            "proc p(){ var a,b: int = 1; }",
+            ErrorType::MismatchedListCardinality,
+        ),
         ("proc p(){ a,b = 1; }", ErrorType::MismatchedListCardinality),
         ("proc p(){ a = 1,; }", ErrorType::UnexpectedToken),
         ("proc p(){ return 1 }", ErrorType::UnexpectedToken),
@@ -68,7 +74,9 @@ fn rejects_bad_programs() {
         ("proc p(){ 1 + ; }", ErrorType::UnexpectedToken),
         ("proc p(){ \"\\q\"; }", ErrorType::InvalidEscapeSequence),
         ("proc p(){} /*", ErrorType::UnclosedComment),
-    ] { assert_eq!(parse(source.as_bytes()).unwrap_err().kind, kind, "{source}"); }
+    ] {
+        assert_eq!(parse(source.as_bytes()).unwrap_err().kind, kind, "{source}");
+    }
     assert!(parse(b"").unwrap().root.is_none());
 }
 
@@ -76,15 +84,24 @@ fn rejects_bad_programs() {
 fn writer_errors_propagate() {
     let ast = parse(b"proc p(){}").unwrap();
     let mut output = [0u8; 3];
-    assert_eq!(node_format(&mut output.as_mut_slice(), &ast, ast.root.unwrap()).unwrap_err().kind(), io::ErrorKind::WriteZero);
+    assert_eq!(
+        node_format(&mut output.as_mut_slice(), &ast, ast.root.unwrap())
+            .unwrap_err()
+            .kind(),
+        io::ErrorKind::WriteZero
+    );
 }
 
 #[test]
 fn arena_growth_and_lists() {
     let source = format!("proc p(){{ {} }}", "a = 1 + 2;".repeat(5000));
     let ast = parse(source.as_bytes()).unwrap();
-    let NodeValue::ProcDefinition { body, .. } = ast.arena[ast.root.unwrap()].value else { panic!() };
-    let NodeValue::Block { statements } = ast.arena[body].value else { panic!() };
+    let NodeValue::ProcDefinition { body, .. } = ast.arena[ast.root.unwrap()].value else {
+        panic!()
+    };
+    let NodeValue::Block { statements } = ast.arena[body].value else {
+        panic!()
+    };
     assert_eq!(node_list_cardinality(&ast, statements), 5000);
     assert_eq!(ast.arena[statements.last.unwrap()].parent, Some(body));
 }

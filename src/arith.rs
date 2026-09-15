@@ -2,14 +2,28 @@
 
 macro_rules! arithmetic {
     ($ty:ty, $shift:ty, $right_limit:expr, $add:ident, $sub:ident, $mul:ident, $shl:ident, $shr:ident) => {
-        pub fn $add(a: $ty, b: $ty) -> $ty { a.wrapping_add(b) }
-        pub fn $sub(a: $ty, b: $ty) -> $ty { a.wrapping_sub(b) }
-        pub fn $mul(a: $ty, b: $ty) -> $ty { a.wrapping_mul(b) }
+        pub fn $add(a: $ty, b: $ty) -> $ty {
+            a.wrapping_add(b)
+        }
+        pub fn $sub(a: $ty, b: $ty) -> $ty {
+            a.wrapping_sub(b)
+        }
+        pub fn $mul(a: $ty, b: $ty) -> $ty {
+            a.wrapping_mul(b)
+        }
         pub fn $shl(a: $ty, b: $shift) -> $ty {
-            if b >= <$ty>::BITS as $shift { 0 } else { a << b }
+            if b >= <$ty>::BITS as $shift {
+                0
+            } else {
+                a << b
+            }
         }
         pub fn $shr(a: $ty, b: $shift) -> $ty {
-            if b >= $right_limit { 0 } else { a >> b }
+            if b >= $right_limit {
+                0
+            } else {
+                a >> b
+            }
         }
     };
 }

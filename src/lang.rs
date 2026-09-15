@@ -12,7 +12,15 @@ pub struct Token {
 }
 
 pub fn escape_sequence(c: char) -> Option<char> {
-    Some(match c { 't' => '\t', 'r' => '\r', 'n' => '\n', '"' => '"', '\'' => '\'', '\\' => '\\', _ => return None })
+    Some(match c {
+        't' => '\t',
+        'r' => '\r',
+        'n' => '\n',
+        '"' => '"',
+        '\'' => '\'',
+        '\\' => '\\',
+        _ => return None,
+    })
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -24,7 +32,10 @@ pub enum ParserType {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct NodeList { pub first: Option<NodeID>, pub last: Option<NodeID> }
+pub struct NodeList {
+    pub first: Option<NodeID>,
+    pub last: Option<NodeID>,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum NodeValue {
@@ -33,21 +44,60 @@ pub enum NodeValue {
     Boolean(bool),
     String(String),
     Identifier(String),
-    Unary { op: TokenType, operand: NodeID },
-    Binary { op: TokenType, left: NodeID, right: NodeID },
-    Index { object: NodeID, idx: NodeID },
-    Call { callable: NodeID, args: NodeList },
-    Field { identifier: String, ty: NodeID },
+    Unary {
+        op: TokenType,
+        operand: NodeID,
+    },
+    Binary {
+        op: TokenType,
+        left: NodeID,
+        right: NodeID,
+    },
+    Index {
+        object: NodeID,
+        idx: NodeID,
+    },
+    Call {
+        callable: NodeID,
+        args: NodeList,
+    },
+    Field {
+        identifier: String,
+        ty: NodeID,
+    },
     ParserType(ParserType),
-    VarDefinition { idents: NodeList, ty: NodeID, values: NodeList },
-    Assignment { left: NodeList, right: NodeList },
-    Block { statements: NodeList },
-    Return { values: NodeList },
+    VarDefinition {
+        idents: NodeList,
+        ty: NodeID,
+        values: NodeList,
+    },
+    Assignment {
+        left: NodeList,
+        right: NodeList,
+    },
+    Block {
+        statements: NodeList,
+    },
+    Return {
+        values: NodeList,
+    },
     Break(String),
     Continue(String),
-    If { condition: NodeID, then_block: NodeID, else_branch: Option<NodeID> },
-    While { condition: NodeID, body: NodeID },
-    ProcDefinition { name: String, args: NodeList, returns: NodeList, body: NodeID },
+    If {
+        condition: NodeID,
+        then_block: NodeID,
+        else_branch: Option<NodeID>,
+    },
+    While {
+        condition: NodeID,
+        body: NodeID,
+    },
+    ProcDefinition {
+        name: String,
+        args: NodeList,
+        returns: NodeList,
+        body: NodeID,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -58,7 +108,10 @@ pub struct Node {
 }
 
 #[derive(Debug, Default)]
-pub struct AST { pub root: Option<NodeID>, pub arena: Arena<Node, NodeID> }
+pub struct AST {
+    pub root: Option<NodeID>,
+    pub arena: Arena<Node, NodeID>,
+}
 
 macro_rules! tokens {
     ($($name:ident => $text:literal,)*) => {
