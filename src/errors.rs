@@ -18,17 +18,18 @@ pub enum ErrorType {
 }
 
 pub fn error_type_name(kind: ErrorType) -> &'static str {
+    type E = ErrorType;
     match kind {
-        ErrorType::UnexpectedChar => "unexpected character",
-        ErrorType::UnknownChar => "unknown character",
-        ErrorType::InvalidBase => "invalid base",
-        ErrorType::InvalidNumber => "invalid number",
-        ErrorType::InvalidEscapeSequence => "invalid escape sequence",
-        ErrorType::InvalidStringChar => "invalid string character",
-        ErrorType::UnclosedString => "unclosed string",
-        ErrorType::UnclosedComment => "unclosed comment",
-        ErrorType::UnexpectedToken => "unexpected token",
-        ErrorType::MismatchedListCardinality => "mismatched cardinality",
+        E::UnexpectedChar => "unexpected character",
+        E::UnknownChar => "unknown character",
+        E::InvalidBase => "invalid base",
+        E::InvalidNumber => "invalid number",
+        E::InvalidEscapeSequence => "invalid escape sequence",
+        E::InvalidStringChar => "invalid string character",
+        E::UnclosedString => "unclosed string",
+        E::UnclosedComment => "unclosed comment",
+        E::UnexpectedToken => "unexpected token",
+        E::MismatchedListCardinality => "mismatched cardinality",
     }
 }
 
@@ -78,4 +79,5 @@ impl fmt::Display for Error {
         )
     }
 }
+
 impl std::error::Error for Error {}

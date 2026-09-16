@@ -1,5 +1,6 @@
 use crate::arena::Arena;
 use crate::base::{murmur3_hash32, Str};
+use crate::small_array::SmallArray;
 use std::collections::HashMap;
 
 crate::def_arena_handle!(TypeID);
@@ -17,10 +18,24 @@ pub enum PrimitiveType {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     Primitive(PrimitiveType),
-    Distinct { inner: TypeID, name: Str },
-    Pointer { inner: TypeID },
-    Array { inner: TypeID, size: i32 },
-    Slice { inner: TypeID },
+    Distinct {
+        inner: TypeID,
+        name: Str,
+    },
+    Pointer {
+        inner: TypeID,
+    },
+    Array {
+        inner: TypeID,
+        size: i32,
+    },
+    Slice {
+        inner: TypeID,
+    },
+    Proc {
+        args: SmallArray<TypeID>,
+        returns: Option<TypeID>,
+    },
 }
 
 pub fn type_hash_mix_u32(current_hash: u32, data: u32) -> u32 {
@@ -35,6 +50,7 @@ impl Type {
             Self::Pointer { .. } => 3,
             Self::Array { .. } => 4,
             Self::Slice { .. } => 5,
+            Self::Proc { .. } => 6,
         };
         let mut h = type_hash_mix_u32(0, kind);
 
@@ -51,6 +67,15 @@ impl Type {
                 h = type_hash_mix_u32(h, (len >> 32) as u32);
                 h = murmur3_hash32(name.as_bytes(), h);
                 type_hash_mix_u32(h, inner.0.get())
+            }
+            Self::Proc { args, returns } => {
+                let len = args.as_slice().len() as u64;
+                h = type_hash_mix_u32(h, len as u32);
+                h = type_hash_mix_u32(h, (len >> 32) as u32);
+                for arg in args.as_slice() {
+                    h = type_hash_mix_u32(h, arg.0.get());
+                }
+                type_hash_mix_u32(h, returns.map_or(0, |id| id.0.get()))
             }
         }
     }
@@ -78,9 +103,9 @@ impl Type {
 /// | w    | 6       | 6         |
 #[derive(Debug, Default)]
 pub struct TypeArena {
-    pub types: Arena<Type, TypeID>,
-    pub next_hash: Vec<Option<TypeID>>,
-    pub id_by_hash: HashMap<u32, TypeID>,
+    types: Arena<Type, TypeID>,
+    next_hash: Vec<Option<TypeID>>,
+    id_by_hash: HashMap<u32, TypeID>,
 }
 
 impl TypeArena {
@@ -119,6 +144,12 @@ impl TypeArena {
             | Type::Pointer { inner }
             | Type::Array { inner, .. }
             | Type::Slice { inner } => Some(*inner),
+            Type::Proc { args, returns } => {
+                for &id in args.as_slice() {
+                    assert!(self.types.get(id).is_some(), "invalid child type ID");
+                }
+                *returns
+            }
         };
         if let Some(id) = inner {
             assert!(self.types.get(id).is_some(), "invalid child type ID");

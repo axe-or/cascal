@@ -1,6 +1,74 @@
 use super::*;
 
 #[test]
+fn procedure_types_preserve_signature_and_ignore_argument_storage() {
+    let mut arena = TypeArena::default();
+    let int = arena.intern(Type::Primitive(PrimitiveType::Int));
+    let real = arena.intern(Type::Primitive(PrimitiveType::Real));
+    let mut args = SmallArray::new();
+    args.push(int);
+    args.push(real);
+    let ty = Type::Proc {
+        args: args.clone(),
+        returns: Some(int),
+    };
+    let id = arena.intern(ty.clone());
+    args.try_reserve_capacity(8).unwrap();
+    let heap = Type::Proc {
+        args,
+        returns: Some(int),
+    };
+    assert_eq!(ty.hash(), heap.hash());
+    assert_eq!(id, arena.intern(heap));
+    let mut reversed = SmallArray::new();
+    reversed.push(real);
+    reversed.push(int);
+    assert_ne!(
+        id,
+        arena.intern(Type::Proc {
+            args: reversed,
+            returns: Some(int)
+        })
+    );
+    let Type::Proc { args, .. } = ty else {
+        unreachable!()
+    };
+    assert_ne!(
+        id,
+        arena.intern(Type::Proc {
+            args,
+            returns: None
+        })
+    );
+    let empty = Type::Proc {
+        args: SmallArray::new(),
+        returns: None,
+    };
+    let empty_id = arena.intern(empty.clone());
+    assert_eq!(empty_id, arena.intern(empty));
+}
+
+#[test]
+#[should_panic(expected = "invalid child type ID")]
+fn procedure_types_reject_invalid_arguments() {
+    let mut args = SmallArray::new();
+    args.push(TypeID(std::num::NonZeroU32::new(1).unwrap()));
+    TypeArena::default().intern(Type::Proc {
+        args,
+        returns: None,
+    });
+}
+
+#[test]
+#[should_panic(expected = "invalid child type ID")]
+fn procedure_types_reject_invalid_returns() {
+    TypeArena::default().intern(Type::Proc {
+        args: SmallArray::new(),
+        returns: Some(TypeID(std::num::NonZeroU32::new(1).unwrap())),
+    });
+}
+
+#[test]
 fn interning_all_kinds_and_growth() {
     let mut arena = TypeArena::with_capacity(1);
     let int = arena.intern(Type::Primitive(PrimitiveType::Int));

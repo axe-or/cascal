@@ -8,3 +8,8 @@ cascal
 *.so
 *.gen.*
 target
+
+
+# Added by cargo
+
+/target

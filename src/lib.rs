@@ -8,6 +8,7 @@ pub mod parser;
 pub mod scanner;
 pub mod small_array;
 pub mod symbol_table;
+pub mod symbols;
 pub mod types;
 
 pub use base::Str;
