@@ -19,23 +19,23 @@ pub fn parser_unexpected(got: Token, expected: TokenType) -> Error {
 }
 
 pub fn prefix_binding_power(op: TokenType) -> Option<u8> {
-    use TokenType::*;
+    use TokenType as T;
     match op {
-        Plus | Minus | Tilde | LogicNot => Some(80),
+        T::Plus | T::Minus | T::Tilde | T::LogicNot => Some(80),
         _ => None,
     }
 }
 
 pub fn infix_binding_power(op: TokenType) -> Option<(u8, u8)> {
-    use TokenType::*;
+    use TokenType as T;
     let left = match op {
-        ParenOpen | SquareOpen => 100,
-        Dot => 90,
-        Star | Tilde | Slash | Modulo | And | ShiftLeft | ShiftRight => 70,
-        Plus | Minus | Or | Caret => 60,
-        Eq | Neq | Gt | GtEq | Lt | LtEq => 50,
-        LogicAnd => 40,
-        LogicOr => 30,
+        T::ParenOpen | T::SquareOpen => 100,
+        T::Dot => 90,
+        T::Star | T::Tilde | T::Slash | T::Modulo | T::And | T::ShiftLeft | T::ShiftRight => 70,
+        T::Plus | T::Minus | T::Or | T::Caret => 60,
+        T::Eq | T::Neq | T::Gt | T::GtEq | T::Lt | T::LtEq => 50,
+        T::LogicAnd => 40,
+        T::LogicOr => 30,
         _ => return None,
     };
     Some((left, left + 1))
@@ -112,27 +112,26 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_prefix(&mut self) -> ParserResult {
-        use TokenType::*;
+        use TokenType as T;
         let token = self.next_token()?;
         let value = match token.kind {
-            Integer => NodeValue::Integer(token.value_int),
-            Real => NodeValue::Real(token.value_real),
-            True | False => NodeValue::Boolean(token.kind == True),
-            Identifier => NodeValue::Identifier(self.token_string(token)),
-            String => {
-                let text = std::string::String::from_utf8_lossy(
-                    &self.scanner.source[token.start + 1..token.end - 1],
-                );
+            T::Integer => NodeValue::Integer(token.value_int),
+            T::Real => NodeValue::Real(token.value_real),
+            T::True | T::False => NodeValue::Boolean(token.kind == T::True),
+            T::Identifier => NodeValue::Identifier(self.token_string(token)),
+            T::String => {
+                let text =
+                    String::from_utf8_lossy(&self.scanner.source[token.start + 1..token.end - 1]);
                 NodeValue::String(unescape_sequences_in_string(&text))
             }
-            ParenOpen => {
+            T::ParenOpen => {
                 let expression = self.parse_expression_bp(0)?;
-                self.expect(ParenClose)?;
+                self.expect(T::ParenClose)?;
                 return Ok(expression);
             }
             op => {
                 let bp =
-                    prefix_binding_power(op).ok_or_else(|| parser_unexpected(token, Unknown))?;
+                    prefix_binding_power(op).ok_or_else(|| parser_unexpected(token, T::Unknown))?;
                 let operand = self.parse_expression_bp(bp)?;
                 NodeValue::Unary { op, operand }
             }
@@ -190,26 +189,26 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_type(&mut self) -> ParserResult {
-        use TokenType::*;
+        use TokenType as T;
         let token = self.next_token()?;
         let ty = match token.kind {
-            Identifier => ParserType::Named(self.token_string(token)),
-            Caret => ParserType::Pointer(self.parse_type()?),
-            SquareOpen => {
-                if self.take_if(SquareClose)? {
+            T::Identifier => ParserType::Named(self.token_string(token)),
+            T::Caret => ParserType::Pointer(self.parse_type()?),
+            T::SquareOpen => {
+                if self.take_if(T::SquareClose)? {
                     ParserType::Slice(self.parse_type()?)
                 } else {
-                    let length = self.expect(Integer)?;
+                    let length = self.expect(T::Integer)?;
                     let length_value = i32::try_from(length.value_int)
                         .map_err(|_| Error::new(ErrorType::InvalidNumber, length.start))?;
-                    self.expect(SquareClose)?;
+                    self.expect(T::SquareClose)?;
                     ParserType::Array {
                         element: self.parse_type()?,
                         length: length_value,
                     }
                 }
             }
-            _ => return Err(parser_unexpected(token, Identifier)),
+            _ => return Err(parser_unexpected(token, T::Identifier)),
         };
         Ok(self.ast.make_node(NodeValue::ParserType(ty)))
     }
@@ -411,19 +410,19 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_statement(&mut self) -> ParserResult {
-        use TokenType::*;
+        use TokenType as T;
         let kind = self.peek()?.kind;
         let node = match kind {
-            Var => self.parse_var_declaration(),
-            Return => self.parse_return_statement(),
-            Break | Continue => self.parse_branch_control(kind),
-            If => self.parse_if_statement(),
-            While => self.parse_while_statement(),
-            Proc => self.parse_proc_definition(),
+            T::Var => self.parse_var_declaration(),
+            T::Return => self.parse_return_statement(),
+            T::Break | T::Continue => self.parse_branch_control(kind),
+            T::If => self.parse_if_statement(),
+            T::While => self.parse_while_statement(),
+            T::Proc => self.parse_proc_definition(),
             _ => self.parse_expression_or_assignment(),
         }?;
-        if !matches!(kind, If | While | Proc) {
-            self.expect(Semicolon)?;
+        if !matches!(kind, T::If | T::While | T::Proc) {
+            self.expect(T::Semicolon)?;
         }
         Ok(node)
     }

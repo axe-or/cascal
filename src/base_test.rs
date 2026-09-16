@@ -1,19 +1,4 @@
 use super::*;
-arena_id!(TestID);
-
-#[test]
-fn arena_ids_survive_growth() {
-    let mut arena = Arena::<_, TestID>::with_capacity(1);
-    let first = arena.alloc(String::from("first"));
-    for _ in 0..4096 {
-        arena.alloc(String::from("later"));
-    }
-    assert_eq!(arena[first], "first");
-    arena[first].push('!');
-    assert_eq!(arena[first], "first!");
-    assert_eq!(size_of::<TestID>(), 4);
-    assert_eq!(size_of::<Option<TestID>>(), 4);
-}
 
 #[test]
 fn hashes_match_murmur3_vectors() {

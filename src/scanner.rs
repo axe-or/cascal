@@ -246,7 +246,7 @@ impl<'a> Scanner<'a> {
     }
 
     pub fn next_token(&mut self) -> ScannerResult {
-        use TokenType::*;
+        use TokenType as T;
         let (start, c) = loop {
             while matches!(self.peek(0), ' ' | '\t' | '\n' | '\r' | '\x0c' | '\x0b') {
                 self.advance();
@@ -259,7 +259,7 @@ impl<'a> Scanner<'a> {
             if let Err(error) = self.scan_comment() {
                 return ScannerResult {
                     error: Some(error),
-                    ..ScannerResult::new(Unknown, start, self.current)
+                    ..ScannerResult::new(T::Unknown, start, self.current)
                 };
             }
         };
@@ -274,71 +274,71 @@ impl<'a> Scanner<'a> {
                 self.advance();
             }
             let text = std::str::from_utf8(&self.source[start..self.current]).unwrap();
-            return ScannerResult::new(keyword(text).unwrap_or(Identifier), start, self.current);
+            return ScannerResult::new(keyword(text).unwrap_or(T::Identifier), start, self.current);
         }
         let kind = match c {
-            '\0' if start == self.source.len() => EndOfFile,
-            '{' => CurlyOpen,
-            '}' => CurlyClose,
-            '[' => SquareOpen,
-            ']' => SquareClose,
-            '(' => ParenOpen,
-            ')' => ParenClose,
-            ':' => Colon,
-            ',' => Comma,
-            '.' => Dot,
-            ';' => Semicolon,
-            '+' => Plus,
+            '\0' if start == self.source.len() => T::EndOfFile,
+            '{' => T::CurlyOpen,
+            '}' => T::CurlyClose,
+            '[' => T::SquareOpen,
+            ']' => T::SquareClose,
+            '(' => T::ParenOpen,
+            ')' => T::ParenClose,
+            ':' => T::Colon,
+            ',' => T::Comma,
+            '.' => T::Dot,
+            ';' => T::Semicolon,
+            '+' => T::Plus,
             '-' => {
                 if self.take_if('>') {
-                    Arrow
+                    T::Arrow
                 } else {
-                    Minus
+                    T::Minus
                 }
             }
-            '*' => Star,
-            '/' => Slash,
-            '%' => Modulo,
-            '&' => And,
-            '|' => Or,
-            '~' => Tilde,
-            '^' => Caret,
+            '*' => T::Star,
+            '/' => T::Slash,
+            '%' => T::Modulo,
+            '&' => T::And,
+            '|' => T::Or,
+            '~' => T::Tilde,
+            '^' => T::Caret,
             '=' => {
                 if self.take_if('=') {
-                    Eq
+                    T::Eq
                 } else {
-                    Assign
+                    T::Assign
                 }
             }
             '!' => {
                 if self.take_if('=') {
-                    Neq
+                    T::Neq
                 } else {
-                    Unknown
+                    T::Unknown
                 }
             }
             '>' => {
                 if self.take_if('=') {
-                    GtEq
+                    T::GtEq
                 } else if self.take_if('>') {
-                    ShiftRight
+                    T::ShiftRight
                 } else {
-                    Gt
+                    T::Gt
                 }
             }
             '<' => {
                 if self.take_if('=') {
-                    LtEq
+                    T::LtEq
                 } else if self.take_if('<') {
-                    ShiftLeft
+                    T::ShiftLeft
                 } else {
-                    Lt
+                    T::Lt
                 }
             }
-            _ => Unknown,
+            _ => T::Unknown,
         };
         let mut result = ScannerResult::new(kind, start, self.current);
-        if kind == Unknown {
+        if kind == T::Unknown {
             result.error = Some(Error::character(ErrorType::UnknownChar, start, c));
         }
         result

@@ -1,3 +1,4 @@
+pub mod arena;
 pub mod arith;
 pub mod array;
 pub mod base;

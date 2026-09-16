@@ -1,7 +1,8 @@
-use crate::base::{murmur3_hash32, Arena, Str};
+use crate::arena::Arena;
+use crate::base::{murmur3_hash32, Str};
 use std::collections::HashMap;
 
-crate::arena_id!(TypeID);
+crate::def_arena_handle!(TypeID);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u32)]

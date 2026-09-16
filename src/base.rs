@@ -1,90 +1,7 @@
-use std::num::NonZeroU32;
-use std::ops::{Index, IndexMut};
 use std::rc::Rc;
 
 /// Shared string storage; cloning a `Str` only increments its reference count.
 pub type Str = Rc<str>;
-
-/// IDs are local to their arena and remain valid until it is dropped.
-pub trait ArenaID: Copy {
-    fn from_raw(raw: NonZeroU32) -> Self;
-    fn raw(self) -> NonZeroU32;
-}
-
-#[macro_export]
-macro_rules! arena_id {
-    ($name:ident) => {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-        #[repr(transparent)]
-        pub struct $name(pub std::num::NonZeroU32);
-        impl $crate::base::ArenaID for $name {
-            fn from_raw(raw: std::num::NonZeroU32) -> Self {
-                Self(raw)
-            }
-            fn raw(self) -> std::num::NonZeroU32 {
-                self.0
-            }
-        }
-    };
-}
-
-/// Append-only typed arena. Moving storage never invalidates an ID.
-/// Rust drops all values together with the arena; no individual removal is exposed.
-#[derive(Debug)]
-pub struct Arena<T, ID> {
-    pub values: crate::array::Array<T>,
-    pub marker: std::marker::PhantomData<ID>,
-}
-
-impl<T, ID: ArenaID> Default for Arena<T, ID> {
-    fn default() -> Self {
-        Self::with_capacity(0)
-    }
-}
-
-impl<T, ID: ArenaID> Arena<T, ID> {
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            values: Vec::with_capacity(capacity),
-            marker: std::marker::PhantomData,
-        }
-    }
-
-    pub fn alloc(&mut self, value: T) -> ID {
-        let raw = u32::try_from(self.values.len())
-            .ok()
-            .and_then(|n| n.checked_add(1))
-            .and_then(NonZeroU32::new)
-            .expect("arena exhausted");
-        self.values.push(value);
-        ID::from_raw(raw)
-    }
-
-    pub fn get(&self, id: ID) -> Option<&T> {
-        self.values.get(id.raw().get() as usize - 1)
-    }
-    pub fn get_mut(&mut self, id: ID) -> Option<&mut T> {
-        self.values.get_mut(id.raw().get() as usize - 1)
-    }
-    pub fn len(&self) -> usize {
-        self.values.len()
-    }
-    pub fn is_empty(&self) -> bool {
-        self.values.is_empty()
-    }
-}
-
-impl<T, ID: ArenaID> Index<ID> for Arena<T, ID> {
-    type Output = T;
-    fn index(&self, id: ID) -> &T {
-        self.get(id).expect("invalid arena ID")
-    }
-}
-impl<T, ID: ArenaID> IndexMut<ID> for Arena<T, ID> {
-    fn index_mut(&mut self, id: ID) -> &mut T {
-        self.get_mut(id).expect("invalid arena ID")
-    }
-}
 
 pub fn murmur3_hash32(data: &[u8], seed: u32) -> u32 {
     let mut hash = seed;
@@ -135,6 +52,7 @@ pub fn rune_decode(bytes: &[u8]) -> RuneDecoded {
             size: 0,
         };
     }
+
     let size = match bytes[0] {
         0..=0x7f => 1,
         0xc2..=0xdf => 2,
@@ -142,6 +60,7 @@ pub fn rune_decode(bytes: &[u8]) -> RuneDecoded {
         0xf0..=0xf4 => 4,
         _ => 1,
     };
+
     if let Some(Ok(s)) = bytes.get(..size).map(std::str::from_utf8) {
         return RuneDecoded {
             codepoint: s.chars().next().unwrap(),

@@ -1,7 +1,8 @@
-use crate::base::{Arena, Str};
+use crate::arena::Arena;
+use crate::base::Str;
 use std::io::{self, Write};
 
-crate::arena_id!(NodeID);
+crate::def_arena_handle!(NodeID);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Token {
@@ -229,48 +230,48 @@ impl AST {
     }
 
     pub fn make_node(&mut self, value: NodeValue) -> NodeID {
-        use NodeValue::*;
+        use NodeValue as N;
         // Fixed-size child collections keep construction allocation-free apart from the arena.
         let mut children = [None; 3];
         let mut lists = [NodeList::default(); 2];
         match &value {
-            Unary { operand, .. } => children[0] = Some(*operand),
-            Binary { left, right, .. } => {
+            N::Unary { operand, .. } => children[0] = Some(*operand),
+            N::Binary { left, right, .. } => {
                 children[0] = Some(*left);
                 children[1] = Some(*right);
             }
-            Index { object, idx } => {
+            N::Index { object, idx } => {
                 children[0] = Some(*object);
                 children[1] = Some(*idx);
             }
-            Call { callable, args } => {
+            N::Call { callable, args } => {
                 children[0] = Some(*callable);
                 lists[0] = *args;
             }
             // Parameter groups share their type node, so it has no single parent.
-            Field { .. } => {}
-            ParserType(
-                crate::lang::ParserType::Slice(element)
-                | crate::lang::ParserType::Pointer(element)
-                | crate::lang::ParserType::Array { element, .. },
+            N::Field { .. } => {}
+            N::ParserType(
+                ParserType::Slice(element)
+                | ParserType::Pointer(element)
+                | ParserType::Array { element, .. },
             ) => children[0] = Some(*element),
-            VarDefinition { idents, ty, values } => {
+            N::VarDefinition { idents, ty, values } => {
                 children[0] = Some(*ty);
                 lists = [*idents, *values];
             }
-            Assignment { left, right } => lists = [*left, *right],
-            Block { statements } => lists[0] = *statements,
-            Return { values } => lists[0] = *values,
-            If {
+            N::Assignment { left, right } => lists = [*left, *right],
+            N::Block { statements } => lists[0] = *statements,
+            N::Return { values } => lists[0] = *values,
+            N::If {
                 condition,
                 then_block,
                 else_branch,
             } => children = [Some(*condition), Some(*then_block), *else_branch],
-            While { condition, body } => {
+            N::While { condition, body } => {
                 children[0] = Some(*condition);
                 children[1] = Some(*body);
             }
-            ProcDefinition {
+            N::ProcDefinition {
                 args,
                 returns,
                 body,
@@ -314,63 +315,63 @@ impl AST {
     }
 
     pub fn format_node(&self, writer: &mut impl Write, id: NodeID) -> io::Result<()> {
-        use NodeValue::*;
+        use NodeValue as N;
         let node = self
             .arena
             .get(id)
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invalid node ID"))?;
         match &node.value {
-            Integer(v) => write!(writer, "{v}"),
-            Real(v) => write!(writer, "{v}"),
-            Boolean(v) => write!(writer, "{v}"),
-            String(v) => write_quoted_string(writer, v),
-            Identifier(v) => write!(writer, "{v}"),
-            ParserType(ty) => match ty {
-                crate::lang::ParserType::Named(name) => write!(writer, "{name}"),
-                crate::lang::ParserType::Slice(element) => {
+            N::Integer(v) => write!(writer, "{v}"),
+            N::Real(v) => write!(writer, "{v}"),
+            N::Boolean(v) => write!(writer, "{v}"),
+            N::String(v) => write_quoted_string(writer, v),
+            N::Identifier(v) => write!(writer, "{v}"),
+            N::ParserType(ty) => match ty {
+                ParserType::Named(name) => write!(writer, "{name}"),
+                ParserType::Slice(element) => {
                     write!(writer, "[]")?;
                     self.format_node(writer, *element)
                 }
-                crate::lang::ParserType::Pointer(element) => {
+                ParserType::Pointer(element) => {
                     write!(writer, "^")?;
                     self.format_node(writer, *element)
                 }
-                crate::lang::ParserType::Array { element, length } => {
+                ParserType::Array { element, length } => {
                     write!(writer, "[{length}]")?;
                     self.format_node(writer, *element)
                 }
             },
-            Unary { op, operand } => {
+            N::Unary { op, operand } => {
                 write!(writer, "({} ", token_type_name(*op))?;
                 self.format_node(writer, *operand)?;
                 write!(writer, ")")
             }
-            Binary { op, left, right } => {
+            N::Binary { op, left, right } => {
                 write!(writer, "({} ", token_type_name(*op))?;
                 self.format_node(writer, *left)?;
                 write!(writer, " ")?;
                 self.format_node(writer, *right)?;
                 write!(writer, ")")
             }
-            Index { object, idx } => {
+            N::Index { object, idx } => {
                 write!(writer, "([] ")?;
                 self.format_node(writer, *object)?;
                 write!(writer, " ")?;
                 self.format_node(writer, *idx)?;
                 write!(writer, ")")
             }
-            Call { callable, args } => {
+            N::Call { callable, args } => {
                 write!(writer, "(call ")?;
                 self.format_node(writer, *callable)?;
                 self.format_list(writer, *args, true)?;
                 write!(writer, ")")
             }
-            Field { identifier, ty } => {
+            N::Field { identifier, ty } => {
                 write!(writer, "(field {identifier} ")?;
                 self.format_node(writer, *ty)?;
                 write!(writer, ")")
             }
-            VarDefinition { idents, ty, values } => {
+            N::VarDefinition { idents, ty, values } => {
                 write!(writer, "(var (")?;
                 self.format_list(writer, *idents, false)?;
                 write!(writer, ") ")?;
@@ -379,28 +380,28 @@ impl AST {
                 self.format_list(writer, *values, false)?;
                 write!(writer, "))")
             }
-            Assignment { left, right } => {
+            N::Assignment { left, right } => {
                 write!(writer, "(= (")?;
                 self.format_list(writer, *left, false)?;
                 write!(writer, ") (")?;
                 self.format_list(writer, *right, false)?;
                 write!(writer, "))")
             }
-            Block { statements } => {
+            N::Block { statements } => {
                 write!(writer, "(block")?;
                 self.format_list(writer, *statements, true)?;
                 write!(writer, ")")
             }
-            Return { values } => {
+            N::Return { values } => {
                 write!(writer, "(return")?;
                 self.format_list(writer, *values, true)?;
                 write!(writer, ")")
             }
-            Break(label) | Continue(label) => {
+            N::Break(label) | N::Continue(label) => {
                 write!(
                     writer,
                     "({}",
-                    if matches!(node.value, Break(_)) {
+                    if matches!(node.value, N::Break(_)) {
                         "break"
                     } else {
                         "continue"
@@ -411,7 +412,7 @@ impl AST {
                 }
                 write!(writer, ")")
             }
-            If {
+            N::If {
                 condition,
                 then_block,
                 else_branch,
@@ -426,14 +427,14 @@ impl AST {
                 }
                 write!(writer, ")")
             }
-            While { condition, body } => {
+            N::While { condition, body } => {
                 write!(writer, "(while ")?;
                 self.format_node(writer, *condition)?;
                 write!(writer, " ")?;
                 self.format_node(writer, *body)?;
                 write!(writer, ")")
             }
-            ProcDefinition {
+            N::ProcDefinition {
                 name,
                 args,
                 returns,

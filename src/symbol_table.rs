@@ -1,8 +1,9 @@
-use crate::base::{Arena, Str};
+use crate::arena::Arena;
+use crate::base::Str;
 use crate::types::TypeID;
 use std::collections::HashMap;
 
-crate::arena_id!(SymbolID);
+crate::def_arena_handle!(SymbolID);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SymbolKind {
