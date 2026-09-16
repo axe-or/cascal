@@ -182,10 +182,12 @@ impl<'a> Scanner<'a> {
             .filter(|&&b| b != b'_')
             .map(|&b| b as char)
             .collect();
+
         let value = text.parse::<f64>().ok();
         let mut result = ScannerResult::new(TokenType::Real, start, self.current);
         let significant = text.split(['e', 'E']).next().unwrap_or("");
         let nonzero = significant.chars().any(|c| matches!(c, '1'..='9'));
+
         match value {
             Some(v) if v.is_finite() && !(nonzero && v == 0.0) => result.token.value_real = v,
             _ => result.error = Some(Error::new(ErrorType::InvalidNumber, self.current)),
@@ -206,6 +208,7 @@ impl<'a> Scanner<'a> {
                 self.advance();
             }
         }
+
         loop {
             let c = self.peek(0);
             if c == '_' {
@@ -229,9 +232,11 @@ impl<'a> Scanner<'a> {
                 }
             }
         }
+
         if base == 10 && self.scan_real_suffix() {
             return self.scan_real(start);
         }
+
         if !has_body {
             error = Some(Error::character(
                 ErrorType::InvalidNumber,
@@ -239,6 +244,7 @@ impl<'a> Scanner<'a> {
                 self.peek(0),
             ));
         }
+
         let mut result = ScannerResult::new(TokenType::Integer, start, self.current);
         result.token.value_int = value;
         result.error = error;

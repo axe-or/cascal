@@ -1,4 +1,4 @@
-use crate::base::{murmur3_hash32, Arena, Str};
+use crate::{base::{Arena, Str, murmur3_hash32}, small_array::SmallArray};
 use std::collections::HashMap;
 
 crate::arena_id!(TypeID);
@@ -20,6 +20,7 @@ pub enum Type {
     Pointer { inner: TypeID },
     Array { inner: TypeID, size: i32 },
     Slice { inner: TypeID },
+    Proc { args: SmallArray<TypeID>, returns: Option<TypeID> }
 }
 
 pub fn type_hash_mix_u32(current_hash: u32, data: u32) -> u32 {
@@ -77,9 +78,9 @@ impl Type {
 /// | w    | 6       | 6         |
 #[derive(Debug, Default)]
 pub struct TypeArena {
-    pub types: Arena<Type, TypeID>,
-    pub next_hash: Vec<Option<TypeID>>,
-    pub id_by_hash: HashMap<u32, TypeID>,
+    types: Arena<Type, TypeID>,
+    next_hash: Vec<Option<TypeID>>,
+    id_by_hash: HashMap<u32, TypeID>,
 }
 
 impl TypeArena {
