@@ -1,31 +1,51 @@
 pub const INLINE_COUNT: usize = 2;
 
-#[derive(Debug)]
-pub enum SmallArray {
-    Inline {
-        data: [i32; INLINE_COUNT],
-        len: usize,
-    },
-    Heap(Vec<i32>),
+/// Only initialized elements are stored, without requiring `T: Default` or unsafe code.
+#[derive(Clone, Debug)]
+pub enum InlineArray<T> {
+    Empty,
+    One([T; 1]),
+    Two([T; INLINE_COUNT]),
 }
 
-impl Default for SmallArray {
+#[derive(Clone, Debug)]
+pub enum SmallArray<T> {
+    Inline { data: InlineArray<T> },
+    Heap(Vec<T>),
+}
+
+impl<T: PartialEq> PartialEq for SmallArray<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl<T: Eq> Eq for SmallArray<T> {}
+
+impl<T> Default for SmallArray<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SmallArray {
+impl<T> SmallArray<T> {
     pub fn new() -> Self {
         Self::Inline {
-            data: [0; INLINE_COUNT],
-            len: 0,
+            data: InlineArray::Empty,
         }
     }
 
-    pub fn as_slice(&self) -> &[i32] {
+    pub fn as_slice(&self) -> &[T] {
         match self {
-            Self::Inline { data, len } => &data[..*len],
+            Self::Inline {
+                data: InlineArray::Empty,
+            } => &[],
+            Self::Inline {
+                data: InlineArray::One(data),
+            } => data,
+            Self::Inline {
+                data: InlineArray::Two(data),
+            } => data,
             Self::Heap(data) => data,
         }
     }
@@ -36,10 +56,14 @@ impl SmallArray {
         new_cap: usize,
     ) -> Result<(), std::collections::TryReserveError> {
         match self {
-            Self::Inline { data, len } if new_cap > INLINE_COUNT => {
+            Self::Inline { data } if new_cap > INLINE_COUNT => {
                 let mut heap = Vec::new();
                 heap.try_reserve(new_cap)?;
-                heap.extend_from_slice(&data[..*len]);
+                match std::mem::replace(data, InlineArray::Empty) {
+                    InlineArray::Empty => {}
+                    InlineArray::One(values) => heap.extend(values),
+                    InlineArray::Two(values) => heap.extend(values),
+                }
                 *self = Self::Heap(heap);
             }
             Self::Heap(data) if new_cap > data.capacity() => {
@@ -50,21 +74,23 @@ impl SmallArray {
         Ok(())
     }
 
-    pub fn push(&mut self, value: i32) {
+    pub fn push(&mut self, value: T) {
         if matches!(
             self,
             Self::Inline {
-                len: INLINE_COUNT,
-                ..
+                data: InlineArray::Two(_),
             }
         ) {
             self.try_reserve_capacity(16)
                 .expect("small array exhausted");
         }
         match self {
-            Self::Inline { data, len } => {
-                data[*len] = value;
-                *len += 1;
+            Self::Inline { data } => {
+                *data = match std::mem::replace(data, InlineArray::Empty) {
+                    InlineArray::Empty => InlineArray::One([value]),
+                    InlineArray::One([first]) => InlineArray::Two([first, value]),
+                    InlineArray::Two(_) => unreachable!("full inline array was moved to heap"),
+                };
             }
             Self::Heap(data) => data.push(value),
         }
