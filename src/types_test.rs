@@ -14,7 +14,7 @@ fn interning_all_kinds_and_growth() {
         },
         Type::Distinct {
             inner: int,
-            name: "Index".to_owned(),
+            name: "Index".into(),
         },
     ] {
         let id = arena.intern(ty.clone());
@@ -40,7 +40,7 @@ fn collisions_are_resolved_by_equality() {
         .find_map(|n| {
             let ty = Type::Distinct {
                 inner: int,
-                name: format!("name{n}"),
+                name: format!("name{n}").into(),
             };
             let h = ty.hash();
             seen.insert(h, ty.clone()).map(|other| (other, ty))
@@ -58,11 +58,15 @@ fn collisions_are_resolved_by_equality() {
 fn names_are_owned_and_lengths_matter() {
     let mut arena = TypeArena::default();
     let int = arena.intern(Type::Primitive(PrimitiveType::Int));
-    let name = String::from("Index");
+    let name = Str::from("Index");
     let id = arena.intern(Type::Distinct {
         inner: int,
         name: name.clone(),
     });
+    let Type::Distinct { name: stored, .. } = &arena.types[id] else {
+        panic!()
+    };
+    assert!(Str::ptr_eq(&name, stored));
     drop(name);
     assert_eq!(
         arena.types[id],

@@ -1,5 +1,9 @@
 use std::num::NonZeroU32;
 use std::ops::{Index, IndexMut};
+use std::rc::Rc;
+
+/// Shared string storage; cloning a `Str` only increments its reference count.
+pub type Str = Rc<str>;
 
 /// IDs are local to their arena and remain valid until it is dropped.
 pub trait ArenaID: Copy {

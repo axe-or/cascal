@@ -27,7 +27,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     writeln!(stdout)?;
 
     let ast = parse(&source).map_err(|mut e| {
-        e.file = path.display().to_string();
+        e.file = path.display().to_string().into();
         e
     })?;
 

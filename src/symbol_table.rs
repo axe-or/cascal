@@ -1,4 +1,4 @@
-use crate::base::Arena;
+use crate::base::{Arena, Str};
 use crate::types::TypeID;
 use std::collections::HashMap;
 
@@ -14,7 +14,7 @@ pub enum SymbolKind {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Symbol {
-    pub name: String,
+    pub name: Str,
     pub kind: SymbolKind,
     pub ty: Option<TypeID>,
 }
@@ -22,7 +22,7 @@ pub struct Symbol {
 #[derive(Debug, Default)]
 pub struct SymbolTable {
     pub symbols: Arena<Symbol, SymbolID>,
-    pub syms: HashMap<String, SymbolID>,
+    pub syms: HashMap<Str, SymbolID>,
 }
 
 impl SymbolTable {

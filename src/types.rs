@@ -1,4 +1,4 @@
-use crate::base::{murmur3_hash32, Arena};
+use crate::base::{murmur3_hash32, Arena, Str};
 use std::collections::HashMap;
 
 crate::arena_id!(TypeID);
@@ -16,7 +16,7 @@ pub enum PrimitiveType {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     Primitive(PrimitiveType),
-    Distinct { inner: TypeID, name: String },
+    Distinct { inner: TypeID, name: Str },
     Pointer { inner: TypeID },
     Array { inner: TypeID, size: i32 },
     Slice { inner: TypeID },
@@ -113,6 +113,7 @@ impl TypeArena {
         }
         let inner = match &ty {
             Type::Primitive(_) => None,
+
             Type::Distinct { inner, .. }
             | Type::Pointer { inner }
             | Type::Array { inner, .. }

@@ -1,4 +1,4 @@
-use crate::base::Arena;
+use crate::base::{Arena, Str};
 use std::io::{self, Write};
 
 crate::arena_id!(NodeID);
@@ -26,7 +26,7 @@ pub fn escape_sequence(c: char) -> Option<char> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParserType {
-    Named(String),
+    Named(Str),
     Slice(NodeID),
     Array { element: NodeID, length: i32 },
     Pointer(NodeID),
@@ -43,8 +43,8 @@ pub enum NodeValue {
     Integer(i64),
     Real(f64),
     Boolean(bool),
-    String(String),
-    Identifier(String),
+    String(Str),
+    Identifier(Str),
     Unary {
         op: TokenType,
         operand: NodeID,
@@ -63,7 +63,7 @@ pub enum NodeValue {
         args: NodeList,
     },
     Field {
-        identifier: String,
+        identifier: Str,
         ty: NodeID,
     },
     ParserType(ParserType),
@@ -82,8 +82,8 @@ pub enum NodeValue {
     Return {
         values: NodeList,
     },
-    Break(String),
-    Continue(String),
+    Break(Str),
+    Continue(Str),
     If {
         condition: NodeID,
         then_block: NodeID,
@@ -94,7 +94,7 @@ pub enum NodeValue {
         body: NodeID,
     },
     ProcDefinition {
-        name: String,
+        name: Str,
         args: NodeList,
         returns: NodeList,
         body: NodeID,

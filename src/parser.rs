@@ -1,3 +1,4 @@
+use crate::base::Str;
 use crate::errors::{Error, ErrorDetail, ErrorType};
 use crate::lang::*;
 use crate::scanner::Scanner;
@@ -40,7 +41,7 @@ pub fn infix_binding_power(op: TokenType) -> Option<(u8, u8)> {
     Some((left, left + 1))
 }
 
-pub fn unescape_sequences_in_string(s: &str) -> String {
+pub fn unescape_sequences_in_string(s: &str) -> Str {
     let mut chars = s.chars();
     let mut result = String::with_capacity(s.len());
     while let Some(c) = chars.next() {
@@ -50,7 +51,7 @@ pub fn unescape_sequences_in_string(s: &str) -> String {
             c
         });
     }
-    result
+    result.into()
 }
 
 pub fn parse(source: &[u8]) -> Result<AST, Error> {
@@ -104,8 +105,10 @@ impl<'a> Parser<'a> {
         self.next_token()
     }
 
-    pub fn token_string(&self, token: Token) -> String {
-        String::from_utf8_lossy(&self.scanner.source[token.start..token.end]).into_owned()
+    pub fn token_string(&self, token: Token) -> Str {
+        String::from_utf8_lossy(&self.scanner.source[token.start..token.end])
+            .as_ref()
+            .into()
     }
 
     pub fn parse_prefix(&mut self) -> ParserResult {
@@ -117,8 +120,10 @@ impl<'a> Parser<'a> {
             True | False => NodeValue::Boolean(token.kind == True),
             Identifier => NodeValue::Identifier(self.token_string(token)),
             String => {
-                let text = self.token_string(token);
-                NodeValue::String(unescape_sequences_in_string(&text[1..text.len() - 1]))
+                let text = std::string::String::from_utf8_lossy(
+                    &self.scanner.source[token.start + 1..token.end - 1],
+                );
+                NodeValue::String(unescape_sequences_in_string(&text))
             }
             ParenOpen => {
                 let expression = self.parse_expression_bp(0)?;
@@ -367,8 +372,9 @@ impl<'a> Parser<'a> {
             let token = self.next_token()?;
             self.token_string(token)
         } else {
-            String::new()
+            Str::default()
         };
+
         let value = if kind == TokenType::Break {
             NodeValue::Break(label)
         } else {

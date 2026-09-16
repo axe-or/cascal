@@ -1,3 +1,4 @@
+use crate::base::Str;
 use crate::lang::TokenType;
 use std::fmt;
 
@@ -40,7 +41,7 @@ pub enum ErrorDetail {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Error {
-    pub file: String,
+    pub file: Str,
     pub offset: usize,
     pub kind: ErrorType,
     pub expected: Option<ErrorDetail>,
@@ -50,7 +51,7 @@ pub struct Error {
 impl Error {
     pub fn new(kind: ErrorType, offset: usize) -> Self {
         Self {
-            file: String::new(),
+            file: Str::default(),
             offset,
             kind,
             expected: None,

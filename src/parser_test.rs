@@ -33,6 +33,27 @@ fn expression_precedence_and_postfix() {
 }
 
 #[test]
+fn cloned_string_nodes_share_storage() {
+    let source = String::from("\"hello\\nworld\"");
+    let mut parser = Parser::new(source.as_bytes());
+    let id = parser.parse_expression().unwrap();
+    let original = &parser.ast.arena[id];
+    let cloned = original.clone();
+    let (NodeValue::String(original_text), NodeValue::String(cloned_text)) =
+        (&original.value, &cloned.value)
+    else {
+        panic!()
+    };
+    assert!(Str::ptr_eq(original_text, cloned_text));
+    drop(parser);
+    drop(source);
+    let NodeValue::String(text) = cloned.value else {
+        panic!()
+    };
+    assert_eq!(&*text, "hello\nworld");
+}
+
+#[test]
 fn compound_types_and_bounds() {
     let mut p = Parser::new(b"[32][]^Item");
     let id = p.parse_type().unwrap();

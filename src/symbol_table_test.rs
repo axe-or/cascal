@@ -11,9 +11,11 @@ fn lookup_replace_and_grow() {
         kind: SymbolKind::Var,
         ty: Some(ty),
     });
+    let (key, _) = table.syms.get_key_value("x").unwrap();
+    assert!(Str::ptr_eq(key, &table.symbols[id].name));
     for n in 0..1000 {
         table.insert(Symbol {
-            name: format!("s{n}"),
+            name: format!("s{n}").into(),
             kind: SymbolKind::Proc,
             ty: None,
         });
