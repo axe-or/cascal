@@ -1,0 +1,22 @@
+[package]
+name = "smallvec"
+version = "1.16.1"
+edition = "2018"
+authors = ["The Servo Project Developers"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/servo/rust-smallvec"
+description = "Vendored smallvec without external dependencies"
+publish = false
+
+[features]
+const_generics = []
+const_new = ["const_generics"]
+drain_filter = []
+drain_keep_rest = ["drain_filter"]
+may_dangle = []
+specialization = []
+union = []
+write = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(docsrs)'] }
