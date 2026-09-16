@@ -2,6 +2,8 @@ use std::num::NonZeroU32;
 use std::ops::{Index, IndexMut};
 use std::rc::Rc;
 
+pub use ::base::{smallvec, SmallVec};
+
 /// Shared string storage; cloning a `Str` only increments its reference count.
 pub type Str = Rc<str>;
 

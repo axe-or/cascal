@@ -4,3 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+base = { path = "base" }
+
+[workspace]
+members = ["base", "base/vendor/smallvec"]
+resolver = "2"
